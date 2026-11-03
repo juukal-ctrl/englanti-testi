@@ -99,6 +99,19 @@ test('collectTexts: kaikki luettavat tekstit ovat mukana, vakaassa muodossa', ()
   for (const t of slow) assert.ok(set.has(t), `hidas teksti ei ole normaalissa luettelossa: ${t}`);
 });
 
+test('respell.json: säännöt ovat kelvollisia ja osuvat johonkin luettavaan tekstiin', () => {
+  const rules = JSON.parse(readFileSync(join(root, 'tools/tts/respell.json'), 'utf8'));
+  const { normal } = collectTexts();
+  for (const [pattern, replacement] of Object.entries(rules)) {
+    assert.equal(typeof replacement, 'string', pattern);
+    const re = new RegExp(pattern);
+    assert.ok(normal.some((t) => re.test(t)), `sääntö ei osu mihinkään tekstiin (vanhentunut?): ${pattern}`);
+    // Foneemimerkintä [sana](/foneemit/) on kelvollinen vain kokonaisena.
+    for (const m of replacement.matchAll(/\[([^\]]*)\]\(([^)]*)\)/g)) assert.ok(m[1] && /^\/[^/]+\/$/.test(m[2]), `virheellinen foneemimerkintä: ${m[0]}`);
+    assert.doesNotMatch(replacement.replace(/\[[^\]]*\]\([^)]*\)/g, ''), /[\[\]()]/, `epätasapainoiset sulut: ${replacement}`);
+  }
+});
+
 /* ---------- Generointiputki (testiäänellä, ilman Kokoroa) ---------- */
 
 const has = (cmd, args) => spawnSync(cmd, args, { encoding: 'utf8' }).status === 0;

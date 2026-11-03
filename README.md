@@ -102,8 +102,8 @@ julkaisee sovelluksen mukana. Mallia ei ajeta laitteella.
 
 1. `tools/tts/texts.mjs` luettelee kaikki tekstit, jotka sovellus voi lukea (ilmaus, esimerkkilause, malli, täytetty
    aukkolause, asetusten testilause) ja erikseen ne, joilla on "Hitaasti"-painike. Tekstit ovat `speakable()`-muodossa.
-2. `tools/tts/generate.py` tekee jokaisesta tekstistä leikkeen (Kokoron nopeus normaali 0,76 ≈ 160 sanaa minuutissa, hidas 0,6
-   ≈ 120; ensimmäinen ajo 0,9 oli noin 190 sanaa minuutissa eli liian nopea), leikkaa hiljaisuudet,
+2. `tools/tts/generate.py` tekee jokaisesta tekstistä leikkeen (Kokoron nopeus normaali 0,76 ≈ 155 sanaa minuutissa, hidas 0,55
+   ≈ 110; ensimmäinen ajo 0,9 oli noin 190 sanaa minuutissa eli liian nopea), leikkaa hiljaisuudet,
    tasaa voimakkuuden, pakkaa Opus-muotoon ja kirjoittaa `audio/manifest.json`in (teksti → tiedoston tunniste).
    Tiedoston nimi on tiiviste tekstistä, äänestä, nopeudesta ja putken versiosta, joten valmiita leikkeitä ei tehdä
    uudelleen eikä vanha leike voi jäädä käyttöön. Tarpeettomat tiedostot poistetaan.
@@ -124,8 +124,11 @@ tekee samat tiedostot testiäänellä (tarvitsee python3:n, numpyn ja ffmpegin).
 
 **Uusi sisältö:** lisää ilmauksia `data/units.js`iin. Työnkulku tekee puuttuvat leikkeet itse. Jos jokin sana luetaan
 väärin, siitä kannattaa ilmoittaa ("Ilmoita virheestä" -linkki harjoituksessa). Korjaus tehdään tiedostoon
-`tools/tts/respell.json` (`{ "säännöllinen lauseke": "korvaus" }`, esim. `{ "\\bPO\\b": "P O" }`): se koskee vain äänitystä, ja
-muuttuneet leikkeet tehdään automaattisesti uudelleen.
+`tools/tts/respell.json` (`{ "säännöllinen lauseke": "korvaus" }`): se koskee vain äänitystä, ja muuttuneet leikkeet
+tehdään automaattisesti uudelleen. Korvaukseksi kelpaa myös oma ääntämys muodossa `[sana](/foneemit/)`, esim.
+`{ "\\bPO\\b": "[PO](/pˌiˈO/)" }`. Foneemit kirjoitetaan misakin amerikanenglannin merkinnällä: `A` = eɪ, `I` = aɪ,
+`O` = oʊ, `W` = aʊ, `Y` = ɔɪ, `ʤ` = dʒ, `ʧ` = tʃ, `T` = r-äänteinen t (flap); `ˈ` on pääpaino ja `ˌ` sivupaino.
+Mallin lukutapa selviää ajon jälkeen tiedostosta `phonemes.tsv` (haara `kokoro-log`).
 
 ## Julkaisu
 

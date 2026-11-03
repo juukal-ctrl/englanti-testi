@@ -29,9 +29,10 @@ SAMPLE_RATE = 24000  # Kokoron tuottama näytteenottotaajuus
 PIPELINE_REV = 1  # kasvata, kun jälkikäsittely tai koodaus muuttuu: kaikki leikkeet generoidaan silloin uudelleen
 ENGINE = 'kokoro-82m'
 DEFAULT_VOICE = 'af_heart'  # amerikanenglantia, nainen
-# Kokoron speed-parametri; 1.0 olisi mallin oma vauhti. Mitattu ensimmäisellä ajolla: 0.9 → noin 190 sanaa minuutissa (liian
-# nopea oppijalle), 0.65 → noin 130. Tavoite: normaali noin 155–160 sanaa/min, "Hitaasti" noin 115–120 sanaa/min.
-SPEEDS = {'normal': 0.76, 'slow': 0.6}
+# Kokoron speed-parametri; 1.0 olisi mallin oma vauhti. Mitatut mediaanit (yli kahdeksan sanan lauseet): 0.9 → 192 sanaa/min
+# (liian nopea oppijalle), 0.76 → 154, 0.65 → 130, 0.6 → 122. Kesto on suunnilleen kääntäen verrannollinen nopeuteen, joten
+# "Hitaasti" (0.55 → noin 110) on 1,4-kertaisesti normaalia hitaampi, selvästi eikä liian hidas.
+SPEEDS = {'normal': 0.76, 'slow': 0.55}
 OPUS_KBPS = 24
 TARGET_RMS = 0.085  # noin -21 dBFS aktiivisista näytteistä
 PEAK_LIMIT = 0.95
