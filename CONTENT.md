@@ -1,0 +1,66 @@
+# Sisältö
+
+Sisältö on tiedostossa [`data/units.js`](data/units.js): aiheita (`units`), joissa on ilmauksia (`items`).
+Sisällön on kirjoittanut Claude. **Äidinkielisen puhujan tarkistus puuttuu vielä**, joten ilmauksia kannattaa lukea
+kriittisesti. Jokaisessa harjoituksessa on "Ilmoita virheestä" -linkki, joka avaa valmiiksi täytetyn GitHub-issuen.
+
+## Nykyiset aiheet (12 kpl, 126 ilmausta)
+
+| Tunniste | Aihe | Ilmauksia | Aukkotehtäviä |
+| --- | --- | ---: | ---: |
+| `mail` | Sähköpostin avaus | 12 | 7 |
+| `ask` | Pyynnöt ja pehmennys | 10 | 4 |
+| `time` | Aikataulut ja määräajat | 10 | 3 |
+| `trap` | Suomalaisten kompastuskivet | 11 | 11 |
+| `issue` | Ongelmat ja vianselvitys | 10 | 2 |
+| `meet` | Kokoukset | 11 | 1 |
+| `view` | Eri mieltä oleminen ja tarkentaminen | 10 | 2 |
+| `inv` | Laskutus ja maksut | 12 | 2 |
+| `call` | Puhelut ja videopuhelut | 10 | 1 |
+| `thanks` | Kiitokset, anteeksipyynnöt ja palaute | 10 | 0 |
+| `small` | Rento keskustelu | 10 | 2 |
+| `deal` | Neuvottelu ja sopiminen | 10 | 2 |
+
+Opetusjärjestys on `UNIT_ORDER`-listassa.
+
+## Kentät
+
+| Kenttä | Pakollinen | Merkitys |
+| --- | --- | --- |
+| `id` | kyllä | Pysyvä tunniste muodossa `<aihe>-NN`. **Ei saa koskaan muuttaa, numeroida uudelleen tai käyttää uudelleen**, koska edistyminen on sidottu siihen. |
+| `en` | kyllä | Opittava ilmaus. `…` merkitsee kohtaa, johon oppija sanoo oman sisältönsä. |
+| `fi` | kyllä | Merkitys luontevalla suomella (ei sanasta sanaan -käännös). |
+| `ex` | kyllä | Esimerkkilause työtilanteesta. Aukkoa sisältävän ilmauksen esimerkin on sisällettävä ilmauksen alku. |
+| `note` | ei | Suomenkielinen kontrastiivinen huomautus (enintään 360 merkkiä), mieluiten suomalaisen tyypillisestä virheestä. |
+| `cz` | ei | Aukkotehtävä: `[lause, jossa ___, oikea vastaus, [2–3 väärää vaihtoehtoa]]`. |
+| `say` | ei | Ääneen luettava versio, jos se poikkeaa `en`-kentästä. Oletuksena `en`, tai `ex`, jos `en` sisältää aukon. |
+
+## Laatulista uudelle sisällölle
+
+Kieli
+- [ ] Amerikanenglantia (esim. *inquiry*, *schedule*, *fall*, *vacation*, *check*), ei brittiläisiä muotoja.
+- [ ] Taso B2+ ja ammatillisessa viestinnässä oikeasti käytössä oleva. Ei kirjakieltä, jota kukaan ei sano.
+- [ ] Rekisteri on selvä: muodollinen, neutraali tai rento. Jos ilmaus on rekisteriltään rajattu, kerro se huomautuksessa.
+- [ ] Suomen kielen vaikutus huomioitu: tyypilliset virheet (prepositiot, *discuss about*, *I am agree*, aikamuodot) ovat mukana.
+- [ ] Esimerkkilause on luonteva ja lyhyt. Mieluiten kokonainen, ääneen sanottava virke.
+
+Muoto (testit tarkistavat nämä automaattisesti: `node --test tests/content.test.mjs`)
+- [ ] `id` on muotoa `<aihe>-NN` ja yksilöllinen.
+- [ ] Ei ajatusviivoja (— –) eikä kaarevia lainausmerkkejä (’ “ ”): äänentoisto lukee ne huonosti. Käytä suoria merkkejä.
+- [ ] Ei ylimääräisiä välilyöntejä.
+- [ ] Aukkotehtävässä täsmälleen yksi `___`, oikea vastaus ja 2–3 yksilöllistä väärää vaihtoehtoa, ja täytetty lause esiintyy ilmauksessa tai esimerkissä.
+- [ ] Väärien vaihtoehtojen pitää olla uskottavia mutta selvästi vääriä (ei kahta oikeaa vastausta).
+
+Sisältö
+- [ ] Ilmaus ei ole jo jossain toisessa aiheessa (hae `data/units.js`:stä).
+- [ ] Huomautus ei toista suomennosta vaan kertoo jotain uutta (käyttö, rekisteri, yleinen virhe).
+- [ ] Ääntämiseltään vaikeat ilmaukset kannattaa lisätä myöhemmin puheharjoituksiin (v/w, *th*, sana-aksentti).
+
+## Uuden aiheen lisääminen
+
+1. Lisää aihe `UNITS`-listaan (`id` pieniä kirjaimia, `title`, `situation`, `intro`, vähintään 5 ilmausta).
+2. Lisää aiheen tunniste `UNIT_ORDER`-listaan haluamaasi kohtaan.
+3. Aja `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
+
+Uusia ilmauksia voi lisätä aiheen loppuun. Älä poista tai uudelleennumeroi vanhoja: poistetun ilmauksen kortti jää
+tietokantaan, mutta sitä ei enää kerrata.

@@ -1,316 +1,38 @@
 <!doctype html>
 <html lang="fi">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
-<meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://api.anthropic.com https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'none'; form-action 'none'">
-<title>Laitetesti</title>
-<style>
-/* Asettelu: yksi kapea sarake, ylhäällä yhteenvetotaulu, alla yksi osio kutakin testiä kohti. */
-:root {
-  --bg: #F3F6F8; --surface: #FFFFFF; --ink: #12202B; --quiet: #46586A;
-  --line: #D2DAE1; --field: #6B7C8C;
-  --accent: #0A5E8C; --on-accent: #FFFFFF; --focus: #0A5E8C;
-  --ok: #17663F; --warn: #8A5200; --fail: #A8231B;
-  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  color-scheme: light dark;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0D141A; --surface: #151F27; --ink: #E7EEF4; --quiet: #A3B3C1;
-    --line: #2A3A47; --field: #7D8FA0;
-    --accent: #5CB8EA; --on-accent: #06202F; --focus: #8FD0F5;
-    --ok: #6FD39B; --warn: #F2B35A; --fail: #FF8F86;
-  }
-}
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
-body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font: 1rem/1.55 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  padding-block: max(20px, env(safe-area-inset-top)) max(32px, env(safe-area-inset-bottom));
-  padding-inline: max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right));
-}
-header, main, footer { max-width: 42rem; margin-inline: auto; }
-h1 { font-size: 1.75rem; line-height: 1.15; margin: .25rem 0 .75rem; letter-spacing: -.01em; text-wrap: balance; }
-h2 { font-size: 1.15rem; line-height: 1.3; margin: 0 0 .5rem; text-wrap: balance; }
-p { margin: 0 0 .75rem; max-width: 65ch; }
-a { color: var(--accent); }
-.eyebrow { font-size: .8125rem; letter-spacing: .06em; text-transform: uppercase; color: var(--quiet); margin: 0; }
-.lead { font-size: 1.0625rem; }
-.note { color: var(--quiet); font-size: .9375rem; }
-section { border-top: 1px solid var(--line); padding-block: 1.25rem; }
-.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-.alert { border: 1.5px solid var(--warn); border-radius: 10px; padding: .75rem 1rem; margin: 1rem 0; }
-
-.board { list-style: none; margin: 0 0 1rem; padding: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
-.board li + li { border-top: 1px solid var(--line); }
-.board a { display: grid; grid-template-columns: 2rem 1fr; column-gap: .5rem; padding: .75rem 1rem; min-height: 56px; color: inherit; text-decoration: none; align-items: start; }
-.board a:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
-.glyph { grid-row: 1 / span 2; font-weight: 700; font-size: 1.25rem; line-height: 1.4; text-align: center; }
-.line { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .6rem; }
-.name { font-weight: 650; }
-.state { font-size: .875rem; font-weight: 600; }
-.sum { color: var(--quiet); font-size: .9375rem; overflow-wrap: anywhere; }
-li[data-status="ok"] .glyph, li[data-status="ok"] .state { color: var(--ok); }
-li[data-status="warn"] .glyph, li[data-status="warn"] .state { color: var(--warn); }
-li[data-status="fail"] .glyph, li[data-status="fail"] .state { color: var(--fail); }
-li[data-status="todo"] .glyph, li[data-status="todo"] .state { color: var(--quiet); }
-
-.btn { font: inherit; font-weight: 600; min-height: 48px; padding: 0 1.1rem; border-radius: 10px; border: 1.5px solid var(--accent); cursor: pointer; }
-.btn.primary { background: var(--accent); color: var(--on-accent); }
-.btn.secondary { background: transparent; color: var(--accent); }
-.btn:disabled { opacity: .5; cursor: not-allowed; }
-:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
-.row { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .75rem; }
-.row.nowrap { flex-wrap: nowrap; }
-.row.nowrap input { flex: 1 1 auto; min-width: 0; }
-.fields { display: grid; grid-template-columns: 1fr; gap: 0 1rem; }
-@media (min-width: 34rem) { .fields { grid-template-columns: 2fr 1fr; } }
-
-label { display: block; font-weight: 600; margin: .75rem 0 .25rem; }
-select, input[type="text"], input[type="password"], textarea {
-  font: inherit; color: var(--ink); background: var(--surface);
-  border: 1.5px solid var(--field); border-radius: 10px; min-height: 48px; padding: .5rem .75rem; width: 100%;
-}
-textarea { font-family: var(--mono); font-size: .8125rem; line-height: 1.5; min-height: 14rem; resize: vertical; }
-::placeholder { color: var(--quiet); opacity: 1; }
-fieldset { border: 0; padding: 0; margin: .75rem 0; min-width: 0; }
-legend { font-weight: 600; padding: 0; margin-bottom: .25rem; }
-.choice { display: flex; align-items: center; gap: .6rem; min-height: 48px; margin: 0; font-weight: 400; cursor: pointer; }
-/* Omat valintaruudut: selaimen oletusreunus jää tummassa teemassa liian himmeäksi (WCAG 1.4.11, vähintään 3:1). */
-input[type="radio"], input[type="checkbox"] {
-  appearance: none; -webkit-appearance: none;
-  width: 24px; height: 24px; margin: 0; flex: none; cursor: pointer;
-  border: 2px solid var(--field); background: var(--surface);
-  display: inline-grid; place-content: center;
-}
-input[type="radio"] { border-radius: 50%; }
-input[type="checkbox"] { border-radius: 6px; }
-input[type="radio"]::before, input[type="checkbox"]::before { content: ""; background: var(--accent); transform: scale(0); }
-input[type="radio"]::before { width: 12px; height: 12px; border-radius: 50%; }
-input[type="checkbox"]::before { width: 14px; height: 14px; clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
-input[type="radio"]:checked::before, input[type="checkbox"]:checked::before { transform: scale(1); }
-input[type="radio"]:checked, input[type="checkbox"]:checked { border-color: var(--accent); }
-
-.sample { font-size: 1.125rem; font-weight: 500; }
-.status { min-height: 1.5em; color: var(--ink); overflow-wrap: anywhere; }
-.facts { display: grid; grid-template-columns: minmax(7rem, 12rem) 1fr; gap: .25rem 1rem; margin: .75rem 0 0; font-size: .9375rem; }
-.facts dt { color: var(--quiet); }
-.facts dd { margin: 0; overflow-wrap: anywhere; }
-@media (max-width: 30rem) {
-  .facts { grid-template-columns: 1fr; gap: 0; }
-  .facts dd { margin-bottom: .5rem; }
-}
-.table-wrap { overflow-x: auto; }
-.matrix { width: 100%; border-collapse: collapse; font-size: .9375rem; margin: .5rem 0; }
-.matrix caption { text-align: left; font-weight: 600; padding-bottom: .25rem; }
-.matrix th, .matrix td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--line); }
-meter { width: 100%; height: 14px; }
-meter::-webkit-meter-bar { background: var(--surface); border: 1.5px solid var(--field); border-radius: 8px; height: 14px; }
-meter::-webkit-meter-optimum-value, meter::-webkit-meter-suboptimum-value, meter::-webkit-meter-even-less-good-value { background: var(--accent); border-radius: 6px; }
-audio { width: 100%; margin-block: .5rem; }
-.steps { padding-left: 1.25rem; margin: .75rem 0; }
-.steps li { margin-bottom: .25rem; }
-details { margin-top: .75rem; }
-summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: .4rem; font-weight: 600; list-style: none; }
-summary::-webkit-details-marker { display: none; }
-summary::before { content: "▸"; display: inline-block; width: 1rem; color: var(--quiet); }
-details[open] > summary::before { content: "▾"; }
-pre { font-family: var(--mono); font-size: .8125rem; white-space: pre-wrap; overflow-wrap: anywhere; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .75rem; margin: .5rem 0; }
-footer { border-top: 1px solid var(--line); padding-top: 1rem; color: var(--quiet); font-size: .875rem; }
-#js-errors { margin: .5rem 0 0; padding-left: 1.25rem; color: var(--fail); }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Englanti</title>
+  <meta name="description" content="Henkilökohtainen amerikanenglannin harjoitussovellus: kertaus, uudet ilmaukset ja puhe.">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#f6f5f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; media-src 'self' blob:; connect-src 'self' https://generativelanguage.googleapis.com https://api.anthropic.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-<noscript><p class="alert">Tämä sivu tarvitsee JavaScriptin.</p></noscript>
-
-<header>
-  <p class="eyebrow">Englannin oppimissovellus · vaihe 0</p>
-  <h1>Laitetesti</h1>
-  <p class="lead">Tämä sivu tarkistaa, mitkä sovelluksen tarvitsemat selainominaisuudet toimivat tällä laitteella. Avaa se puhelimen Chromessa, käy kohdat läpi ylhäältä alas ja kopioi lopuksi raportti keskusteluun.</p>
-  <p class="note">Raportti sisältää selaimen version ja laitteen mallin. Siinä ei ole avainta, ääntä eikä omia tekstejäsi.</p>
-  <div id="frame-warning" class="alert" role="alert" hidden>Sivu on avattu toisen sivun sisällä (kehyksessä). Mikrofoni, offline-välimuisti ja API-kutsut eivät yleensä toimi kehyksessä. Avaa sivun osoite suoraan Chromen omassa välilehdessä.</div>
-</header>
-
-<main>
-  <section aria-labelledby="h-board">
-    <h2 id="h-board">Yhteenveto</h2>
-    <ul id="board" class="board">
-      <li data-test="env" data-status="todo"><a href="#sec-env"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Ympäristö</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="tts" data-status="todo"><a href="#sec-tts"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Puhe ulos</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="asr" data-status="todo"><a href="#sec-asr"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Puhe sisään</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="mic" data-status="todo"><a href="#sec-mic"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Mikrofoni ja äänitys</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="offline" data-status="todo"><a href="#sec-offline"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Offline</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="storage" data-status="todo"><a href="#sec-storage"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Tallennus</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-      <li data-test="ai" data-status="todo"><a href="#sec-ai"><span class="glyph" aria-hidden="true">–</span><span class="line"><span class="name">Tekoäly</span><span class="state">Ei testattu</span></span><span class="sum">Ei vielä testattu</span></a></li>
-    </ul>
-    <div class="row">
-      <button type="button" id="btn-passive" class="btn secondary act">Aja automaattiset tarkistukset uudelleen</button>
-      <button type="button" class="btn primary js-copy">Kopioi raportti</button>
-    </div>
-    <p id="copy-status" class="status" role="status"></p>
-  </section>
-
-  <section id="sec-env" aria-labelledby="h-env">
-    <h2 id="h-env">Ympäristö</h2>
-    <p>Selain, käyttöjärjestelmä ja yhteyden tyyppi. Suojattu yhteys (HTTPS) on pakollinen mikrofonille ja service workerille.</p>
-    <dl id="env-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-tts" aria-labelledby="h-tts">
-    <h2 id="h-tts">Puhe ulos</h2>
-    <p>Laite lukee englanninkielisen lauseen ääneen. Paikallinen ääni toimii ilman verkkoa, verkkoääni ei.</p>
-    <p class="sample" lang="en" id="tts-sentence"></p>
-    <div class="fields">
-      <div><label for="voice">Ääni</label><select id="voice"></select></div>
-      <div><label for="rate">Nopeus</label>
-        <select id="rate">
-          <option value="0.7">0,7 (hidas)</option>
-          <option value="0.85">0,85</option>
-          <option value="1" selected>1,0 (normaali)</option>
-          <option value="1.2">1,2</option>
-        </select>
-      </div>
-    </div>
-    <div class="row"><button type="button" id="btn-speak" class="btn primary act">Soita lause</button></div>
-    <p id="tts-out" class="status" role="status"></p>
-    <div id="tts-confirm" class="row" hidden>
-      <span>Kuuluiko ääni?</span>
-      <button type="button" id="btn-heard-yes" class="btn secondary">Kyllä</button>
-      <button type="button" id="btn-heard-no" class="btn secondary">Ei</button>
-    </div>
-    <dl id="tts-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-asr" aria-labelledby="h-asr">
-    <h2 id="h-asr">Puhe sisään</h2>
-    <p>Selain muuttaa puheesi tekstiksi. Normaalitilassa Chrome lähettää äänen Googlen palveluun. Tila "Vain laitteella" ei lähetä sitä, mutta vaatii ladatun kielipaketin.</p>
-    <div class="table-wrap">
-      <table class="matrix">
-        <caption>en-US-tuki laatutason ja tilan mukaan</caption>
-        <thead><tr><th scope="col">Laatutaso</th><th scope="col">Verkon kautta</th><th scope="col">Vain laitteella</th></tr></thead>
-        <tbody id="asr-matrix"></tbody>
-      </table>
-    </div>
-    <p class="note">Laitteella-tuen tarkistus on kokeellinen eikä käynnisty itsestään: joissakin selaimissa se voi kaataa välilehden. Jos niin käy, avaa sivu uudelleen, niin raportti kertoo keskeytyksestä.</p>
-    <div class="row">
-      <button type="button" id="btn-local-check" class="btn secondary act">Tarkista laitteella-tuki</button>
-      <button type="button" id="btn-install" class="btn secondary act" hidden>Lataa paikallinen kielipaketti (en-US)</button>
-    </div>
-    <p id="asr-interrupted" class="alert" role="status" hidden></p>
-    <fieldset>
-      <legend>Tila</legend>
-      <label class="choice"><input type="radio" name="asr-mode" value="normal" checked> Normaali (voi käyttää verkkopalvelua)</label>
-      <label class="choice"><input type="radio" name="asr-mode" value="local"> Vain laitteella (tarkista tuki ensin)</label>
-    </fieldset>
-    <label for="asr-sentence">Lause, jonka luet ääneen</label>
-    <select id="asr-sentence"></select>
-    <p class="sample" lang="en" id="asr-target"></p>
-    <div class="row"><button type="button" id="btn-listen" class="btn primary act">Puhu ja tunnista</button></div>
-    <p id="asr-live" class="status" role="status" aria-live="polite"></p>
-    <dl id="asr-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-mic" aria-labelledby="h-mic">
-    <h2 id="h-mic">Mikrofoni ja äänitys</h2>
-    <p>Mikrofonia tarvitaan shadowing-harjoituksiin ja oman äänen tallennukseen. Chrome kysyy luvan ensimmäisellä kerralla. Älä käynnistä tätä testiä samaan aikaan puheentunnistuksen kanssa.</p>
-    <p>Lupa: <strong id="mic-perm">tuntematon</strong></p>
-    <div class="row"><button type="button" id="btn-level" class="btn primary act">Testaa mikrofoni (4 s)</button></div>
-    <label for="meter">Äänitaso</label>
-    <meter id="meter" min="0" max="1" value="0"></meter>
-    <div class="row"><button type="button" id="btn-record" class="btn primary act">Äänitä 3 s ja toista</button></div>
-    <audio id="rec-audio" controls hidden aria-label="Oma äänitys"></audio>
-    <div id="rec-confirm" class="row" hidden>
-      <span>Kuuluiko oma äänesi?</span>
-      <button type="button" id="btn-rec-yes" class="btn secondary">Kyllä</button>
-      <button type="button" id="btn-rec-no" class="btn secondary">Ei</button>
-    </div>
-    <p id="mic-out" class="status" role="status"></p>
-    <dl id="mic-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-offline" aria-labelledby="h-offline">
-    <h2 id="h-offline">Offline</h2>
-    <p>Service worker tallentaa sivun laitteelle. Verkko nyt: <strong id="net-badge">tuntematon</strong></p>
-    <ol class="steps">
-      <li>Odota, että yhteenvedossa Offline-kohdassa lukee "Välimuisti valmis".</li>
-      <li>Laita lentokonetila päälle.</li>
-      <li>Lataa tämä sivu uudelleen Chromen päivityspainikkeella.</li>
-      <li>Jos sivu aukeaa ja Offline-kohdassa lukee "Offline-lataus onnistui", offline-käyttö toimii.</li>
-      <li>Kytke lentokonetila pois päältä.</li>
-    </ol>
-    <dl id="offline-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-storage" aria-labelledby="h-storage">
-    <h2 id="h-storage">Tallennus</h2>
-    <p>Oppimisdata tallennetaan laitteelle IndexedDB:hen. Pysyvä tallennus estää selainta poistamasta dataa tilanpuutteessa; Chrome päättää itse, myöntääkö se sen.</p>
-    <div class="row">
-      <button type="button" id="btn-idb" class="btn primary act">Kirjoita ja lue 1 Mt</button>
-      <button type="button" id="btn-persist" class="btn secondary act">Pyydä pysyvää tallennusta</button>
-    </div>
-    <p id="store-out" class="status" role="status"></p>
-    <dl id="store-list" class="facts"></dl>
-  </section>
-
-  <section id="sec-ai" aria-labelledby="h-ai">
-    <h2 id="h-ai">Tekoäly (oma API-avain)</h2>
-    <p>Testi lähettää yhden kiinteän englanninkielisen virkkeen valitulle palvelulle ja pyytää korjaavaa palautetta JSON-muodossa suomeksi. Kutsu lähtee suoraan tästä selaimesta palvelulle, ei välipalvelimen kautta.</p>
-    <fieldset>
-      <legend>Palvelu</legend>
-      <label class="choice"><input type="radio" name="provider" value="anthropic" id="prov-anthropic" checked> Claude (Anthropic)</label>
-      <label class="choice"><input type="radio" name="provider" value="gemini" id="prov-gemini"> Gemini (Google)</label>
-    </fieldset>
-    <div id="note-anthropic" class="note">
-      <p>Claude API on maksullinen ja erillinen claude.ai-tilauksesta. Avain luodaan Claude Platformin konsolissa (platform.claude.com), ja tilille tarvitaan saldoa. Haiku 5.5 maksaa 0,10 $ miljoonaa syötetokenia ja 0,50 $ miljoonaa tulostetokenia kohti, kun kehote on enintään 100 000 tokenia. Anthropicin kaupallisten ehtojen mukaan Anthropic ei saa kouluttaa malleja API:n syötteillä ja tulosteilla.</p>
-      <p><a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener noreferrer">Hinnasto</a> · <a href="https://www.anthropic.com/legal/commercial-terms" target="_blank" rel="noopener noreferrer">Kaupalliset ehdot</a></p>
-    </div>
-    <div id="note-gemini" class="note" hidden>
-      <p>Geminin ilmaisella tasolla on käyttörajat, jotka muuttuvat. Googlen lisäehtojen (23.3.2026) mukaan maksuttomaan palveluun ei saa lähettää arkaluonteista, luottamuksellista tai henkilötietoa. ETA:ssa maksullisten palvelujen tietoehdot koskevat myös ilmaista kiintiötä, mutta ETA:n käyttäjille tarkoitetuissa API-asiakkaissa saa käyttää vain maksullisia palveluja. Ehdoista ei selviä, koskeeko tämä yhden henkilön omaa sovellusta.</p>
-      <p><a href="https://ai.google.dev/terms_of_service" target="_blank" rel="noopener noreferrer">Googlen ehdot</a></p>
-    </div>
-    <label for="api-key">API-avain</label>
-    <div class="row nowrap">
-      <input id="api-key" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Liitä avain tähän">
-      <button type="button" id="btn-showkey" class="btn secondary" aria-pressed="false">Näytä</button>
-    </div>
-    <label class="choice"><input type="checkbox" id="chk-remember"> Muista avain tällä laitteella</label>
-    <p class="note">Älä liitä avainta keskusteluun. Jos tallennat sen, se jää tämän sivuston osoitteen selaintallennukseen. Muut samalla github.io-osoitteella olevat sivut näkevät sen, joten älä tallenna avainta, jos sinulla on niitä.</p>
-    <label for="api-model">Malli</label>
-    <input id="api-model" type="text" list="model-list" autocomplete="off" autocapitalize="none" spellcheck="false">
-    <datalist id="model-list"></datalist>
-    <div class="row">
-      <button type="button" id="btn-models" class="btn secondary act">Hae mallit</button>
-      <button type="button" id="btn-ai" class="btn primary act">Lähetä testikutsu</button>
-      <button type="button" id="btn-forget" class="btn secondary" hidden>Poista tallennetut avaimet</button>
-    </div>
-    <p id="ai-out" class="status" role="status"></p>
-    <dl id="ai-list" class="facts"></dl>
-    <details>
-      <summary>Mallin vastaus</summary>
-      <pre id="ai-raw"></pre>
-    </details>
-  </section>
-
-  <section id="sec-report" aria-labelledby="h-report">
-    <h2 id="h-report">Raportti</h2>
-    <p>Kopioi tämä teksti ja liitä se keskusteluun.</p>
-    <label for="report" class="sr-only">Raportti (vain luku)</label>
-    <textarea id="report" readonly rows="14" spellcheck="false"></textarea>
-    <div class="row"><button type="button" class="btn primary js-copy">Kopioi raportti</button></div>
-    <ul id="js-errors" hidden></ul>
-  </section>
-</main>
-
-<footer>
-  <p>Laitetesti v1. Ei seurantaa eikä analytiikkaa. Ulos lähtevät vain valitsemasi API-kutsu ja Chromen oma puheentunnistus.</p>
-</footer>
-
-<script type="module" src="./app.js"></script>
+  <a class="skip" href="#main">Siirry sisältöön</a>
+  <div id="app">
+    <div id="banner"></div>
+    <main id="main" tabindex="-1">
+      <div id="view"></div>
+    </main>
+    <nav id="nav" aria-label="Päävalikko">
+      <a href="#/today" data-nav="today"><span class="ico" data-icon="home"></span><span>Tänään</span></a>
+      <a href="#/review" data-nav="review"><span class="ico" data-icon="repeat"></span><span>Kertaus</span></a>
+      <a href="#/lessons" data-nav="lessons"><span class="ico" data-icon="school"></span><span>Oppitunti</span></a>
+      <a href="#/speak" data-nav="speak"><span class="ico" data-icon="mic"></span><span>Puhu</span></a>
+      <a href="#/more" data-nav="more"><span class="ico" data-icon="more"></span><span>Lisää</span></a>
+    </nav>
+  </div>
+  <div id="live" class="sr" role="status" aria-live="polite"></div>
+  <div id="toasts" aria-label="Ilmoitukset"></div>
+  <noscript><p class="banner warn">Tämä sovellus tarvitsee JavaScriptin.</p></noscript>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

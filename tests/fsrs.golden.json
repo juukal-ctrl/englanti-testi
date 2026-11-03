@@ -1,0 +1,564 @@
+{
+ "w": [
+  0.212,
+  1.2931,
+  2.3065,
+  8.2956,
+  6.4133,
+  0.8334,
+  3.0194,
+  0.001,
+  1.8722,
+  0.1666,
+  0.796,
+  1.4835,
+  0.0614,
+  0.2629,
+  1.6483,
+  0.6014,
+  1.8729,
+  0.5425,
+  0.0912,
+  0.0658,
+  0.1542
+ ],
+ "cases": {
+  "steady_good": {
+   "retention": 0.9,
+   "steps": [
+    {
+     "day": 0,
+     "rating": 3,
+     "stability": 2.3065,
+     "difficulty": 2.118103970459015,
+     "state": 2,
+     "lapses": 0,
+     "interval": 2,
+     "dueDay": 2,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 8
+     }
+    },
+    {
+     "day": 2,
+     "rating": 3,
+     "stability": 10.964332335820703,
+     "difficulty": 2.1112142357853942,
+     "state": 2,
+     "lapses": 0,
+     "interval": 11,
+     "dueDay": 13,
+     "buttons": {
+      "1": 1,
+      "2": 8,
+      "3": 11,
+      "4": 19
+     }
+    },
+    {
+     "day": 7,
+     "rating": 3,
+     "stability": 30.13323120791685,
+     "difficulty": 2.1043313908464474,
+     "state": 2,
+     "lapses": 0,
+     "interval": 30,
+     "dueDay": 37,
+     "buttons": {
+      "1": 1,
+      "2": 22,
+      "3": 30,
+      "4": 47
+     }
+    },
+    {
+     "day": 20,
+     "rating": 3,
+     "stability": 72.66948180990016,
+     "difficulty": 2.0974554287524394,
+     "state": 2,
+     "lapses": 0,
+     "interval": 73,
+     "dueDay": 93,
+     "buttons": {
+      "1": 2,
+      "2": 56,
+      "3": 73,
+      "4": 110
+     }
+    },
+    {
+     "day": 52,
+     "rating": 3,
+     "stability": 162.85782210232995,
+     "difficulty": 2.0905863426205253,
+     "state": 2,
+     "lapses": 0,
+     "interval": 163,
+     "dueDay": 215,
+     "buttons": {
+      "1": 3,
+      "2": 127,
+      "3": 163,
+      "4": 242
+     }
+    },
+    {
+     "day": 130,
+     "rating": 3,
+     "stability": 352.4522882399456,
+     "difficulty": 2.083724125574743,
+     "state": 2,
+     "lapses": 0,
+     "interval": 352,
+     "dueDay": 482,
+     "buttons": {
+      "1": 4,
+      "2": 277,
+      "3": 352,
+      "4": 518
+     }
+    }
+   ]
+  },
+  "mixed": {
+   "retention": 0.9,
+   "steps": [
+    {
+     "day": 0,
+     "rating": 3,
+     "stability": 2.3065,
+     "difficulty": 2.118103970459015,
+     "state": 2,
+     "lapses": 0,
+     "interval": 2,
+     "dueDay": 2,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 8
+     }
+    },
+    {
+     "day": 2,
+     "rating": 3,
+     "stability": 10.964332335820703,
+     "difficulty": 2.1112142357853942,
+     "state": 2,
+     "lapses": 0,
+     "interval": 11,
+     "dueDay": 13,
+     "buttons": {
+      "1": 1,
+      "2": 8,
+      "3": 11,
+      "4": 19
+     }
+    },
+    {
+     "day": 7,
+     "rating": 2,
+     "stability": 22.492508117499327,
+     "difficulty": 4.7482847615945705,
+     "state": 2,
+     "lapses": 0,
+     "interval": 22,
+     "dueDay": 29,
+     "buttons": {
+      "1": 1,
+      "2": 22,
+      "3": 30,
+      "4": 47
+     }
+    },
+    {
+     "day": 20,
+     "rating": 3,
+     "stability": 52.257230048461125,
+     "difficulty": 4.738764846129814,
+     "state": 2,
+     "lapses": 0,
+     "interval": 52,
+     "dueDay": 72,
+     "buttons": {
+      "1": 2,
+      "2": 40,
+      "3": 52,
+      "4": 78
+     }
+    },
+    {
+     "day": 40,
+     "rating": 1,
+     "stability": 2.6901789803861123,
+     "difficulty": 8.255896150618755,
+     "state": 3,
+     "lapses": 1,
+     "interval": 3,
+     "dueDay": 43,
+     "buttons": {
+      "1": 3,
+      "2": 78,
+      "3": 95,
+      "4": 132
+     }
+    },
+    {
+     "day": 40,
+     "rating": 3,
+     "stability": 2.6901789803861123,
+     "difficulty": 8.242868623764974,
+     "state": 2,
+     "lapses": 1,
+     "interval": 3,
+     "dueDay": 43,
+     "buttons": {
+      "1": 1,
+      "2": 2,
+      "3": 3,
+      "4": 5
+     }
+    },
+    {
+     "day": 41,
+     "rating": 4,
+     "stability": 5.59663161373337,
+     "difficulty": 7.640945569446198,
+     "state": 2,
+     "lapses": 1,
+     "interval": 6,
+     "dueDay": 47,
+     "buttons": {
+      "1": 1,
+      "2": 4,
+      "3": 5,
+      "4": 6
+     }
+    },
+    {
+     "day": 50,
+     "rating": 3,
+     "stability": 16.070100611682264,
+     "difficulty": 7.62853299317359,
+     "state": 2,
+     "lapses": 1,
+     "interval": 16,
+     "dueDay": 66,
+     "buttons": {
+      "1": 1,
+      "2": 12,
+      "3": 16,
+      "4": 25
+     }
+    },
+    {
+     "day": 90,
+     "rating": 4,
+     "stability": 77.58477678305961,
+     "difficulty": 6.8213275991515605,
+     "state": 2,
+     "lapses": 1,
+     "interval": 78,
+     "dueDay": 168,
+     "buttons": {
+      "1": 2,
+      "2": 36,
+      "3": 49,
+      "4": 78
+     }
+    }
+   ]
+  },
+  "starts_again": {
+   "retention": 0.9,
+   "steps": [
+    {
+     "day": 0,
+     "rating": 1,
+     "stability": 0.212,
+     "difficulty": 6.4133,
+     "state": 1,
+     "lapses": 0,
+     "interval": 1,
+     "dueDay": 1,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 8
+     }
+    },
+    {
+     "day": 0,
+     "rating": 1,
+     "stability": 0.08335671711031603,
+     "difficulty": 8.806304468856837,
+     "state": 1,
+     "lapses": 1,
+     "interval": 1,
+     "dueDay": 1,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 3
+     }
+    },
+    {
+     "day": 0,
+     "rating": 3,
+     "stability": 0.1031406500778523,
+     "difficulty": 8.792726533684817,
+     "state": 2,
+     "lapses": 1,
+     "interval": 2,
+     "dueDay": 2,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 3
+     }
+    },
+    {
+     "day": 1,
+     "rating": 3,
+     "stability": 0.6952546986897922,
+     "difficulty": 8.77916217644797,
+     "state": 2,
+     "lapses": 1,
+     "interval": 2,
+     "dueDay": 3,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 3
+     }
+    },
+    {
+     "day": 3,
+     "rating": 3,
+     "stability": 2.4045049345250464,
+     "difficulty": 8.76561138356836,
+     "state": 2,
+     "lapses": 1,
+     "interval": 3,
+     "dueDay": 6,
+     "buttons": {
+      "1": 1,
+      "2": 2,
+      "3": 3,
+      "4": 4
+     }
+    },
+    {
+     "day": 9,
+     "rating": 2,
+     "stability": 5.096182090306893,
+     "difficulty": 9.165783683199988,
+     "state": 2,
+     "lapses": 1,
+     "interval": 5,
+     "dueDay": 14,
+     "buttons": {
+      "1": 1,
+      "2": 5,
+      "3": 7,
+      "4": 11
+     }
+    },
+    {
+     "day": 20,
+     "rating": 3,
+     "stability": 11.422192291967935,
+     "difficulty": 9.151846268813626,
+     "state": 2,
+     "lapses": 1,
+     "interval": 11,
+     "dueDay": 31,
+     "buttons": {
+      "1": 1,
+      "2": 9,
+      "3": 11,
+      "4": 17
+     }
+    }
+   ]
+  },
+  "retention_95": {
+   "retention": 0.95,
+   "steps": [
+    {
+     "day": 0,
+     "rating": 3,
+     "stability": 2.3065,
+     "difficulty": 2.118103970459015,
+     "state": 2,
+     "lapses": 0,
+     "interval": 2,
+     "dueDay": 2,
+     "buttons": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 3
+     }
+    },
+    {
+     "day": 1,
+     "rating": 3,
+     "stability": 7.315300744077282,
+     "difficulty": 2.1112142357853942,
+     "state": 2,
+     "lapses": 0,
+     "interval": 3,
+     "dueDay": 4,
+     "buttons": {
+      "1": 1,
+      "2": 2,
+      "3": 3,
+      "4": 5
+     }
+    },
+    {
+     "day": 3,
+     "rating": 3,
+     "stability": 16.127271827103986,
+     "difficulty": 2.1043313908464474,
+     "state": 2,
+     "lapses": 0,
+     "interval": 6,
+     "dueDay": 9,
+     "buttons": {
+      "1": 1,
+      "2": 5,
+      "3": 6,
+      "4": 10
+     }
+    },
+    {
+     "day": 8,
+     "rating": 3,
+     "stability": 35.16532736208707,
+     "difficulty": 2.0974554287524394,
+     "state": 2,
+     "lapses": 0,
+     "interval": 14,
+     "dueDay": 22,
+     "buttons": {
+      "1": 1,
+      "2": 11,
+      "3": 14,
+      "4": 21
+     }
+    },
+    {
+     "day": 20,
+     "rating": 4,
+     "stability": 109.43928638643797,
+     "difficulty": 1,
+     "state": 2,
+     "lapses": 0,
+     "interval": 44,
+     "dueDay": 64,
+     "buttons": {
+      "1": 1,
+      "2": 24,
+      "3": 30,
+      "4": 44
+     }
+    }
+   ]
+  },
+  "retention_80": {
+   "retention": 0.8,
+   "steps": [
+    {
+     "day": 0,
+     "rating": 3,
+     "stability": 2.3065,
+     "difficulty": 2.118103970459015,
+     "state": 2,
+     "lapses": 0,
+     "interval": 8,
+     "dueDay": 8,
+     "buttons": {
+      "1": 1,
+      "2": 4,
+      "3": 8,
+      "4": 28
+     }
+    },
+    {
+     "day": 3,
+     "rating": 3,
+     "stability": 13.826903694354572,
+     "difficulty": 2.1112142357853942,
+     "state": 2,
+     "lapses": 0,
+     "interval": 46,
+     "dueDay": 49,
+     "buttons": {
+      "1": 2,
+      "2": 31,
+      "3": 46,
+      "4": 79
+     }
+    },
+    {
+     "day": 11,
+     "rating": 3,
+     "stability": 42.062960428170435,
+     "difficulty": 2.1043313908464474,
+     "state": 2,
+     "lapses": 0,
+     "interval": 139,
+     "dueDay": 150,
+     "buttons": {
+      "1": 5,
+      "2": 102,
+      "3": 139,
+      "4": 221
+     }
+    },
+    {
+     "day": 40,
+     "rating": 3,
+     "stability": 124.03812522657027,
+     "difficulty": 2.0974554287524394,
+     "state": 2,
+     "lapses": 0,
+     "interval": 411,
+     "dueDay": 451,
+     "buttons": {
+      "1": 9,
+      "2": 303,
+      "3": 411,
+      "4": 649
+     }
+    },
+    {
+     "day": 150,
+     "rating": 3,
+     "stability": 368.3173419896882,
+     "difficulty": 2.0905863426205253,
+     "state": 2,
+     "lapses": 0,
+     "interval": 1221,
+     "dueDay": 1371,
+     "buttons": {
+      "1": 14,
+      "2": 898,
+      "3": 1221,
+      "4": 1928
+     }
+    }
+   ]
+  }
+ }
+}
