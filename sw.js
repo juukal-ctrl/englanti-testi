@@ -2,7 +2,7 @@
 // Versio ja tiedostolista päivitetään komennolla `node tools/stamp.mjs` (testi varmistaa, että ne ovat ajan tasalla).
 
 // <generated>
-const VERSION = '995b7c3a1e';
+const VERSION = '58ec029679';
 const SHELL = [
   './',
   'css/app.css',

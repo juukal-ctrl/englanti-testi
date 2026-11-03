@@ -75,13 +75,34 @@ export function loadManifest() {
     } catch {
       manifest = null;
     }
-    if (!manifest) setTimeout(() => (manifestPromise = null), 20000);
+    if (manifest) pruneAudioCache(manifest);
+    else setTimeout(() => (manifestPromise = null), 20000);
     return manifest;
   })();
   return manifestPromise;
 }
 
 export const clipsAvailable = () => Boolean(manifest && manifest.normal.size + manifest.slow.size > 0);
+
+/**
+ * Poistaa äänivälimuistista leikkeet, joita manifesti ei enää käytä (äänet on generoitu uudelleen), jotta välimuisti
+ * ei kasva loputtomiin. Tyhjä manifesti ei poista mitään. Palauttaa poistettujen määrän.
+ */
+export async function pruneAudioCache(m = manifest, cacheStorage = globalThis.caches) {
+  if (!m || !cacheStorage || m.normal.size + m.slow.size === 0) return 0;
+  const keep = new Set([...m.normal.values(), ...m.slow.values()]);
+  let removed = 0;
+  try {
+    const cache = await cacheStorage.open(AUDIO_CACHE);
+    for (const req of await cache.keys()) {
+      const hit = /\/([0-9a-f]+)\.ogg$/.exec(req.url);
+      if (hit && !keep.has(hit[1]) && (await cache.delete(req))) removed++;
+    }
+  } catch {
+    /* välimuisti ei ole käytettävissä */
+  }
+  return removed;
+}
 
 /* ---------- Leikkeiden nouto ---------- */
 

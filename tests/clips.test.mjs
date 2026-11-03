@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { parseManifest, findClip, playbackRateFor, AUDIO_CACHE, DEFAULT_RATE, SLOW_FALLBACK } from '../js/clips.js';
+import { parseManifest, findClip, playbackRateFor, pruneAudioCache, AUDIO_CACHE, DEFAULT_RATE, SLOW_FALLBACK } from '../js/clips.js';
 import { collectTexts } from '../tools/tts/texts.mjs';
 import { speakable, VOICE_TEST_TEXT } from '../js/speakable.js';
 import { CATALOG, BLANK } from '../js/content.js';
@@ -51,6 +51,26 @@ test('playbackRateFor: oletusnopeus toistaa leikkeen sellaisenaan, muut suhteess
   assert.equal(playbackRateFor(Number.NaN), 1);
   assert.equal(playbackRateFor(undefined), 1);
   assert.ok(playbackRateFor(100) <= 1.5);
+});
+
+test('pruneAudioCache: poistaa vain manifestista poistuneet leikkeet, ei koske manifestiin eikä tyhjällä manifestilla mihinkään', async () => {
+  const urlOf = (name) => `https://example.test/englanti-testi/audio/${name}`;
+  const store = new Map([[urlOf(`${ID_A}.ogg`), 1], [urlOf(`${ID_B}.ogg`), 1], [urlOf(`${ID_C}.ogg`), 1], [urlOf('manifest.json'), 1]]);
+  const opened = [];
+  const fake = {
+    open: async (name) => {
+      opened.push(name);
+      return { keys: async () => [...store.keys()].map((url) => ({ url })), delete: async (req) => store.delete(req.url) };
+    },
+  };
+  const m = parseManifest({ version: 1, normal: { 'A.': ID_A }, slow: { 'A.': ID_C } });
+  assert.equal(await pruneAudioCache(m, fake), 1);
+  assert.deepEqual([...store.keys()].sort(), [urlOf(`${ID_A}.ogg`), urlOf(`${ID_C}.ogg`), urlOf('manifest.json')].sort());
+  assert.deepEqual(opened, [AUDIO_CACHE]);
+  assert.equal(await pruneAudioCache(parseManifest({ version: 1 }), fake), 0, 'tyhjä manifesti ei tyhjennä välimuistia');
+  assert.equal(store.size, 3);
+  assert.equal(await pruneAudioCache(null, fake), 0);
+  assert.equal(await pruneAudioCache(m, null), 0, 'ilman Cache API:a ei tehdä mitään');
 });
 
 test('service workerin äänivälimuisti on sama kuin clips.js:ssä eikä sitä siivota päivityksessä', () => {

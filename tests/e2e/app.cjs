@@ -866,12 +866,18 @@ const dbState = (page) =>
     console.log('OHITETTU  Kokoro-testit: python3, numpy tai ffmpeg puuttuu');
   } else {
     // Testiäänet tehdään generate.py:n --fake-tilalla ja säilytetään ajojen välillä (generointi on inkrementaalinen).
-    const audioDir = process.env.E2E_AUDIO_DIR || path.join(os.tmpdir(), 'e2e-fake-audio');
-    fs.mkdirSync(audioDir, { recursive: true });
-    const textsFile = path.join(os.tmpdir(), 'e2e-texts.json');
-    fs.writeFileSync(textsFile, sh('node', ['tools/tts/texts.mjs']).stdout);
-    const gen = sh('python3', ['tools/tts/generate.py', '--texts', textsFile, '--out', audioDir, '--fake']);
-    check('testiäänten generointi (generate.py --fake) onnistuu', gen.status === 0, (gen.stdout + gen.stderr).slice(-300));
+    // E2E_REAL_AUDIO=1 ajaa saman osion repon oikeilla, Actionsissa generoiduilla Kokoro-äänillä (audio/): ne luetaan
+    // vain, eikä testi koskaan kirjoita repon audio/-kansioon.
+    const realAudio = process.env.E2E_REAL_AUDIO === '1';
+    const audioDir = realAudio ? path.join(repoRoot, 'audio') : process.env.E2E_AUDIO_DIR || path.join(os.tmpdir(), 'e2e-fake-audio');
+    if (!realAudio) {
+      fs.mkdirSync(audioDir, { recursive: true });
+      const textsFile = path.join(os.tmpdir(), 'e2e-texts.json');
+      fs.writeFileSync(textsFile, sh('node', ['tools/tts/texts.mjs']).stdout);
+      const gen = sh('python3', ['tools/tts/generate.py', '--texts', textsFile, '--out', audioDir, '--fake']);
+      check('testiäänten generointi (generate.py --fake) onnistuu', gen.status === 0, (gen.stdout + gen.stderr).slice(-300));
+    }
+    const T = realAudio ? 40000 : 8000; // oikeat äänet ovat pidempiä kuin testiäänet
     // Sivuston kopio, jossa audio/ on testiäänillä: manifesti ja tiedostot ovat samoissa poluissa kuin tuotannossa.
     const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-'));
     fs.cpSync(repoRoot, siteDir, {
@@ -896,8 +902,8 @@ const dbState = (page) =>
         runTasks(ctx, document.querySelector('#view'), [{ kind: 'teach', item: ctx.catalog.byId.get('mail-01'), cta: 'Testaa itsesi' }], { title: 'Uutta' });
       });
     const stats = (pg) => pg.evaluate(() => window.__englanti.clipStats());
-    const waitPlayed = (pg, n) => pg.waitForFunction((n) => window.__englanti.clipStats().played.length >= n, n, { timeout: 8000 });
-    const idle = (pg) => pg.waitForFunction(() => window.__audios.every((a) => a.paused || a.ended), null, { timeout: 8000 });
+    const waitPlayed = (pg, n) => pg.waitForFunction((n) => window.__englanti.clipStats().played.length >= n, n, { timeout: T });
+    const idle = (pg) => pg.waitForFunction(() => window.__audios.every((a) => a.paused || a.ended), null, { timeout: T });
     const nSpoken = (pg) => pg.evaluate(() => window.__spoken.length);
 
     await runOn(kp, 'kokoro: asetukset ja testiääni', async () => {
