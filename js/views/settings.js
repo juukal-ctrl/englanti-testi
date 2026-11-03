@@ -51,7 +51,7 @@ export async function mount(root, ctx) {
       'section',
       { class: 'card' },
       h('h2', {}, 'Oppiminen'),
-      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), 'Sessio täyttää tämän ajan: ensin kertaus, sitten uusia ilmauksia ja lopuksi puheharjoitus.', 's-min'),
+      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), 'Tavoiteaika: ensin kertaus, sitten uusia ilmauksia ja lopuksi puheharjoitus. Jos etenet nopeasti, sessio päättyy aiemmin; "lisää"-painike jatkaa.', 's-min'),
       field(
         'Uusia ilmauksia päivässä (enintään)',
         range(ctx, 'newMax', { id: 's-new', min: 0, max: 20, step: 1, format: (v) => String(v) }),
