@@ -2,7 +2,7 @@
 // Versio ja tiedostolista päivitetään komennolla `node tools/stamp.mjs` (testi varmistaa, että ne ovat ajan tasalla).
 
 // <generated>
-const VERSION = '61ae4b500b';
+const VERSION = '995b7c3a1e';
 const SHELL = [
   './',
   'css/app.css',
@@ -13,6 +13,7 @@ const SHELL = [
   'icons/icon.svg',
   'index.html',
   'js/app.js',
+  'js/clips.js',
   'js/content.js',
   'js/db.js',
   'js/exercises.js',
@@ -41,6 +42,8 @@ const SHELL = [
 // </generated>
 
 const CACHE = `englanti-${VERSION}`;
+// Esiäänitetyt äänet (audio/) ovat omassa välimuistissaan, jotta ne säilyvät sovelluspäivityksissä. Nimi on sama kuin js/clips.js:ssä.
+const AUDIO_CACHE = 'englanti-audio-v1';
 // Vanhat välimuistit, jotka kuuluivat repon juuressa aiemmin olleelle laitetestille.
 const LEGACY = ['laitetesti-v1'];
 
@@ -67,11 +70,37 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((k) => (k.startsWith('englanti-') && k !== CACHE) || LEGACY.includes(k)).map((k) => caches.delete(k))),
+        Promise.all(keys.filter((k) => (k.startsWith('englanti-') && k !== CACHE && k !== AUDIO_CACHE) || LEGACY.includes(k)).map((k) => caches.delete(k))),
       )
       .then(() => self.clients.claim()),
   );
 });
+
+/**
+ * Äänileikkeet: manifesti verkosta ensin (uudet leikkeet näkyvät heti, ilman verkkoa käytetään viimeksi haettua),
+ * leikkeet itse välimuistista ensin, koska niiden nimi on tiiviste sisällöstä eikä muutu koskaan.
+ */
+async function audioResponse(req, url) {
+  const cache = await caches.open(AUDIO_CACHE);
+  if (url.pathname.endsWith('/manifest.json')) {
+    try {
+      const res = await fetch(req, { cache: 'no-cache' });
+      if (res.ok) await cache.put(req, res.clone());
+      return res;
+    } catch {
+      return (await cache.match(req)) ?? new Response('Offline', { status: 503, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    }
+  }
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  try {
+    const res = await fetch(req);
+    if (res.ok && res.type === 'basic') await cache.put(req, res.clone());
+    return res;
+  } catch {
+    return Response.error();
+  }
+}
 
 self.addEventListener('fetch', (event) => {
   const req = event.request;
@@ -79,6 +108,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // tekoälyrajapinnat ym. kulkevat suoraan verkkoon
   if (url.pathname.includes('/laitetesti/')) return; // laitetestillä on oma service workerinsa
+  if (/\/audio\/[^/]+$/.test(url.pathname)) {
+    event.respondWith(audioResponse(req, url));
+    return;
+  }
 
   event.respondWith(
     (async () => {

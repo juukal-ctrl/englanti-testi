@@ -10,6 +10,7 @@ const TYPES = {
   '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.json': 'application/json',
+  '.ogg': 'audio/ogg',
   '.webmanifest': 'application/manifest+json',
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
@@ -108,11 +109,22 @@ window.__sig = () => {
 };
 `;
 
-async function launch({ viewport = { width: 412, height: 915 }, scale = 2, stubSpeech = true, colorScheme = 'light' } = {}) {
+// Tallentaa kaikki luodut Audio-elementit (window.__audios), jotta testit näkevät toistonopeuden ja tilan.
+const AUDIO_SPY = `
+(() => {
+  window.__audios = [];
+  const Orig = window.Audio;
+  window.Audio = function (...args) { const el = new Orig(...args); window.__audios.push(el); return el; };
+  window.Audio.prototype = Orig.prototype;
+})();
+`;
+
+async function launch({ viewport = { width: 412, height: 915 }, scale = 2, stubSpeech = true, colorScheme = 'light', serviceWorkers = 'allow', audioSpy = false } = {}) {
   const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport, deviceScaleFactor: scale, colorScheme, acceptDownloads: true, locale: 'fi-FI', timezoneId: 'Europe/Helsinki' });
+  const context = await browser.newContext({ viewport, deviceScaleFactor: scale, colorScheme, acceptDownloads: true, locale: 'fi-FI', timezoneId: 'Europe/Helsinki', serviceWorkers });
   await context.addInitScript(HELPERS);
   if (stubSpeech) await context.addInitScript(SPEECH_STUB);
+  if (audioSpy) await context.addInitScript(AUDIO_SPY);
   const page = await context.newPage();
   const problems = [];
   page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));

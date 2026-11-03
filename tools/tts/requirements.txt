@@ -1,0 +1,5 @@
+# Kokoro-82M:n riippuvuudet. PyTorch asennetaan erikseen CPU-versiona (katso .github/workflows/kokoro-audio.yml).
+kokoro>=0.9.4
+misaki[en]>=0.9.4
+soundfile
+numpy

@@ -18,6 +18,9 @@ const MONTHS = 'January|February|March|April|May|June|July|August|September|Octo
 const MONTH_DAY = new RegExp(`\\b(${MONTHS})(\\.?)\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b(?![:\\d])`, 'g');
 const ORDINAL_DIGITS = /\b(\d{1,2})(?:st|nd|rd|th)\b/g;
 
+/** Asetusten "Testaa ääni" -painikkeen lause. Se on mukana myös esiäänitettävien tekstien luettelossa. */
+export const VOICE_TEST_TEXT = 'Could you possibly send me the updated report by noon?';
+
 /** Palauttaa tekstin siinä muodossa, jossa se kannattaa lukea ääneen. */
 export function speakable(text) {
   return String(text ?? '')

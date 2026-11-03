@@ -4,12 +4,17 @@
 
 import { sleep } from './util.js';
 import { speakable } from './speakable.js';
+import { playClips, stopClips, clipsAvailable } from './clips.js';
 
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition || null;
 
 export const ttsSupported = () => Boolean(synth) && typeof SpeechSynthesisUtterance !== 'undefined';
 export const asrSupported = () => Boolean(SR);
+/** Esiäänitettyjä (Kokoro) leikkeitä käytetään, kun ääneksi on valittu "Automaattinen" (voiceURI on tyhjä). */
+const clipsWanted = (voiceURI) => !voiceURI;
+/** Voiko tekstin lukea ääneen: laitteen puhesynteesillä tai valmiilla leikkeillä. */
+export const canSpeak = (voiceURI = '') => ttsSupported() || (clipsWanted(voiceURI) && clipsAvailable());
 
 /* ---------- Äänet ---------- */
 
@@ -62,6 +67,7 @@ let epoch = 0;
 
 export function stopSpeaking() {
   epoch++;
+  stopClips();
   if (synth) synth.cancel();
 }
 
@@ -70,22 +76,31 @@ export function stopSpeaking() {
  * Kahdessa vartijassa: ei käynnistynyt 6 s:ssa, tai ei päättynyt 30 s:ssa.
  */
 export async function speak(text, opts = {}) {
-  const mine = ++epoch;
-  return speakOne(text, opts, { fresh: true, alive: () => epoch === mine });
+  return speakSequence([text], opts);
 }
 
 /**
  * Lukee useita tekstejä peräkkäin lyhyin tauoin (esim. ilmaus ja esimerkkilause).
  * Pysähtyy, jos käyttäjä pysäyttää toiston tai käynnistää toisen.
+ * Valinnat: rate (laitteen ääni), slow ja userRate (esiäänitetyt leikkeet), voiceURI, onStart, pauseMs.
+ * Esiäänitetty leike on ensisijainen; jos sitä ei ole tai se ei lataudu, teksti luetaan laitteen äänellä.
  */
 export async function speakSequence(texts, { pauseMs = 450, ...opts } = {}) {
   const parts = texts.map((t) => speakable(t)).filter(Boolean);
-  if (!ttsSupported() || !parts.length) return { ok: false, kind: 'unsupported' };
+  if (!parts.length) return { ok: false, kind: 'unsupported' };
   const mine = ++epoch;
+  const alive = () => epoch === mine;
+  stopClips();
+  if (clipsWanted(opts.voiceURI)) {
+    const played = await playClips(parts, { slow: opts.slow, userRate: opts.userRate ?? opts.rate, pauseMs, alive, onStart: opts.onStart });
+    if (played) return played;
+    if (!alive()) return { ok: true, kind: 'stopped' };
+  }
+  if (!ttsSupported()) return { ok: false, kind: 'unsupported' };
   let last = { ok: true, kind: 'end' };
   for (let i = 0; i < parts.length; i++) {
     if (epoch !== mine) return { ok: true, kind: 'stopped' };
-    last = await speakOne(parts[i], opts, { fresh: i === 0, alive: () => epoch === mine });
+    last = await speakOne(parts[i], opts, { fresh: i === 0, alive });
     if (!last.ok || last.kind !== 'end') return last;
     if (i < parts.length - 1) await sleep(pauseMs);
   }

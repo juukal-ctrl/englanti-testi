@@ -1,0 +1,150 @@
+# Generoi esiäänitetyt Kokoro-äänet (audio/) ja tallentaa ne repoon. GitHub Pages julkaisee ne sovelluksen mukana.
+# Ajetaan, kun sisältö tai generointi muuttuu. Jo olemassa olevia leikkeitä ei generoida uudelleen.
+# Virhetilanteessa loki päätyy haaraan kokoro-log (build.log), josta sen voi lukea ilman Actions-käyttöliittymää.
+name: Kokoro audio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/**'
+      - 'js/speakable.js'
+      - 'js/content.js'
+      - 'tools/tts/**'
+      - '.github/workflows/kokoro-audio.yml'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Generoi kaikki leikkeet uudelleen'
+        type: boolean
+        default: false
+
+concurrency:
+  group: kokoro-audio
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      HF_HUB_DISABLE_TELEMETRY: '1'
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Plan
+        id: plan
+        run: |
+          mkdir -p build
+          node tools/tts/texts.mjs > build/texts.json
+          missing=$(python3 tools/tts/generate.py --texts build/texts.json --out audio --plan)
+          if [ "${{ inputs.force }}" = "true" ]; then missing=all; fi
+          echo "Puuttuvia leikkeitä: $missing" | tee build/build.log
+          echo "missing=$missing" >> "$GITHUB_OUTPUT"
+
+      - name: System packages
+        if: steps.plan.outputs.missing != '0'
+        run: |
+          {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq espeak-ng ffmpeg
+            ffmpeg -hide_banner -encoders 2>/dev/null | grep -i opus || echo "VAROITUS: libopus puuttuu"
+          } 2>&1 | tail -20 | tee -a build/build.log
+
+      - name: Cache models and packages
+        if: steps.plan.outputs.missing != '0'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/huggingface
+            ~/.cache/pip
+          key: kokoro-${{ runner.os }}-${{ hashFiles('tools/tts/requirements.txt') }}
+
+      - name: Python packages
+        if: steps.plan.outputs.missing != '0'
+        run: |
+          {
+            python -m pip install --upgrade pip
+            pip install torch --index-url https://download.pytorch.org/whl/cpu
+            pip install -r tools/tts/requirements.txt
+            python -m spacy download en_core_web_sm
+            pip list 2>/dev/null | grep -iE '^(torch|kokoro|misaki|spacy|transformers|numpy|huggingface)'
+          } 2>&1 | tail -60 | tee -a build/build.log
+
+      - name: Generate
+        id: generate
+        run: |
+          args=""
+          if [ "${{ inputs.force }}" = "true" ]; then args="--force"; fi
+          python tools/tts/generate.py --texts build/texts.json --out audio $args 2>&1 | tee -a build/build.log
+
+      - name: Commit audio
+        id: commit
+        if: ${{ !cancelled() }}
+        run: |
+          mkdir -p build
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A audio
+          if git diff --cached --quiet; then
+            echo "Ei muutoksia." | tee -a build/build.log
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          files=$(git diff --cached --name-only | wc -l)
+          git commit -q -m "Update Kokoro audio clips ($files files)"
+          for attempt in 1 2 3; do
+            if git push origin HEAD:main; then
+              echo "pushed=true" >> "$GITHUB_OUTPUT"
+              echo "Tallennettu: $files tiedostoa." | tee -a build/build.log
+              exit 0
+            fi
+            git pull --rebase origin main
+          done
+          echo "Tallennus epäonnistui." | tee -a build/build.log
+          exit 1
+
+      - name: Request Pages build
+        if: steps.commit.outputs.pushed == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${GITHUB_REPOSITORY}/pages/builds" 2>&1 | tee -a build/build.log
+
+      - name: Annotate failure
+        if: failure()
+        run: |
+          [ -f build/build.log ] || exit 0
+          tail -c 3500 build/build.log | python3 -c "import sys; t=sys.stdin.read(); print('::error title=Kokoro build failed::' + t.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))"
+
+      - name: Publish build log
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/logpub && cd /tmp/logpub
+          cp "$GITHUB_WORKSPACE/build/build.log" build.log 2>/dev/null || echo "ei lokia" > build.log
+          cp "$GITHUB_WORKSPACE/audio/manifest.json" manifest.json 2>/dev/null || true
+          printf 'job: %s\nrun: %s\ncommit: %s\n' "${{ job.status }}" "${{ github.run_id }}" "${{ github.sha }}" > status.txt
+          git init -q -b kokoro-log
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Kokoro build log (${{ job.status }}, run ${{ github.run_id }})"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" kokoro-log

@@ -468,7 +468,7 @@ const dbState = (page) =>
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.2\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.3\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');
@@ -650,7 +650,7 @@ const dbState = (page) =>
     const info = await page.evaluate(async () => {
       const reg = await navigator.serviceWorker.ready;
       const keys = await caches.keys();
-      const cache = await caches.open(keys.find((k) => k.startsWith('englanti-')));
+      const cache = await caches.open(keys.find((k) => /^englanti-[0-9a-f]{10}$/.test(k)));
       const urls = (await cache.keys()).map((r) => new URL(r.url).pathname);
       return { active: reg.active && reg.active.state, scope: new URL(reg.scope).pathname, keys, urls, controlled: Boolean(navigator.serviceWorker.controller) };
     });
@@ -659,7 +659,7 @@ const dbState = (page) =>
     const shell = [...swText.matchAll(/^\s+'([^']+)',$/gm)].map((m) => m[1]).filter((f) => f !== './');
     const missing = shell.filter((f) => !info.urls.includes('/englanti-testi/' + f));
     check('kaikki sovelluskuoren tiedostot ovat välimuistissa', missing.length === 0 && shell.length > 25, `puuttuu: ${missing.join(', ')}`);
-    check('vain yksi englanti-välimuisti', info.keys.filter((k) => k.startsWith('englanti-')).length === 1, info.keys.join(','));
+    check('vain yksi versiokohtainen englanti-välimuisti (äänivälimuisti on erillinen)', info.keys.filter((k) => /^englanti-[0-9a-f]{10}$/.test(k)).length === 1, info.keys.join(','));
     if (!info.controlled) {
       await page.reload();
       await page.waitForSelector('#view h1');
@@ -854,6 +854,214 @@ const dbState = (page) =>
     const slow = await fp.evaluate(() => ({ rate: window.__rates[0], text: window.__spoken[0] }));
     check('esimerkin "Hitaasti" lukee saman lauseen hitaammin', slow.text === example && Math.abs(slow.rate - 0.595) < 0.001, JSON.stringify(slow));
   });
+
+  /* ===== 13. Kokoro-äänet: esiäänitetyt leikkeet (testiäänillä, sama putki kuin tuotannossa) ===== */
+  const { spawnSync } = require('child_process');
+  const os = require('os');
+  const repoRoot = path.join(__dirname, '..', '..');
+  const sh = (cmd, args) => spawnSync(cmd, args, { encoding: 'utf8', cwd: repoRoot });
+  const toolsOk = sh('python3', ['-c', 'import numpy']).status === 0 && sh('ffmpeg', ['-version']).status === 0;
+  let kokoroProblems = [];
+  if (!toolsOk) {
+    console.log('OHITETTU  Kokoro-testit: python3, numpy tai ffmpeg puuttuu');
+  } else {
+    // Testiäänet tehdään generate.py:n --fake-tilalla ja säilytetään ajojen välillä (generointi on inkrementaalinen).
+    const audioDir = process.env.E2E_AUDIO_DIR || path.join(os.tmpdir(), 'e2e-fake-audio');
+    fs.mkdirSync(audioDir, { recursive: true });
+    const textsFile = path.join(os.tmpdir(), 'e2e-texts.json');
+    fs.writeFileSync(textsFile, sh('node', ['tools/tts/texts.mjs']).stdout);
+    const gen = sh('python3', ['tools/tts/generate.py', '--texts', textsFile, '--out', audioDir, '--fake']);
+    check('testiäänten generointi (generate.py --fake) onnistuu', gen.status === 0, (gen.stdout + gen.stderr).slice(-300));
+    // Sivuston kopio, jossa audio/ on testiäänillä: manifesti ja tiedostot ovat samoissa poluissa kuin tuotannossa.
+    const siteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'site-'));
+    fs.cpSync(repoRoot, siteDir, {
+      recursive: true,
+      filter: (src) => !/^(\.git|node_modules|tests|tools|audio)(\/|$)/.test(path.relative(repoRoot, src).split(path.sep).join('/')),
+    });
+    fs.cpSync(audioDir, path.join(siteDir, 'audio'), { recursive: true });
+    const srv2 = await serve(siteDir);
+    const base2 = srv2.base;
+    const manifest = JSON.parse(fs.readFileSync(path.join(siteDir, 'audio', 'manifest.json'), 'utf8'));
+    const clipCount = new Set([...Object.values(manifest.normal), ...Object.values(manifest.slow)]).size;
+    const PHRASE = "I'm writing to follow up on";
+    const EXAMPLE = "I'm writing to follow up on the invoice we sent on October third.";
+    const TESTLINE = 'Could you possibly send me the updated report by noon?';
+
+    const k = await launch({ audioSpy: true });
+    const kp = k.page;
+    const showTeach = (pg) =>
+      pg.evaluate(async () => {
+        const { runTasks } = await import(new URL('js/runner.js', document.baseURI).href);
+        const ctx = window.__englanti;
+        runTasks(ctx, document.querySelector('#view'), [{ kind: 'teach', item: ctx.catalog.byId.get('mail-01'), cta: 'Testaa itsesi' }], { title: 'Uutta' });
+      });
+    const stats = (pg) => pg.evaluate(() => window.__englanti.clipStats());
+    const waitPlayed = (pg, n) => pg.waitForFunction((n) => window.__englanti.clipStats().played.length >= n, n, { timeout: 8000 });
+    const idle = (pg) => pg.waitForFunction(() => window.__audios.every((a) => a.paused || a.ended), null, { timeout: 8000 });
+    const nSpoken = (pg) => pg.evaluate(() => window.__spoken.length);
+
+    await runOn(kp, 'kokoro: asetukset ja testiääni', async () => {
+      await go(kp, base2, 'settings');
+      await kp.waitForFunction(() => /äänitettä/.test(document.querySelector('#s-clip-info')?.textContent ?? ''), null, { timeout: 8000 });
+      const info = await kp.textContent('#s-clip-info');
+      check('asetuksissa näkyy Kokoro-äänten määrä, ääni ja lataustilanne', info.includes(`${clipCount} äänitettä`) && info.includes('af_heart') && info.includes(`ladattu 0 / ${clipCount}`) && /Käytössä\./.test(info), info);
+      const opts = await kp.$$eval('#s-voice option', (os) => os.map((o) => o.value));
+      check('äänivalinnassa on automaattinen ja laitteen oma ääni', opts[0] === '' && opts[1] === 'device', JSON.stringify(opts));
+      check('lataa-painike on käytössä, kun leikkeitä on ladattavana', await kp.isEnabled('#s-clip-load'));
+      await kp.click('.range-row .icon-btn.speak');
+      await waitPlayed(kp, 1);
+      const st = await stats(kp);
+      check('"Testaa ääni" toistaa Kokoro-leikkeen eikä käytä laitteen ääntä', st.played[0] === manifest.normal[TESTLINE] && (await nSpoken(kp)) === 0, JSON.stringify(st.played));
+      await idle(kp);
+    });
+
+    await runOn(kp, 'kokoro: opetus, hidas toisto, nopeus ja pysäytys', async () => {
+      await go(kp, base2);
+      await kp.click('#view h1');
+      const before = (await stats(kp)).played.length;
+      await showTeach(kp);
+      await kp.waitForSelector('.runner-box .phrase-row');
+      await waitPlayed(kp, before + 2);
+      let st = await stats(kp);
+      const ids = st.played.slice(before, before + 2);
+      check('automaattinen toisto: ilmaus ja esimerkkilause leikkeinä tässä järjestyksessä', ids[0] === manifest.normal[PHRASE] && ids[1] === manifest.normal[EXAMPLE], JSON.stringify(ids));
+      check('leikkeitä käytettäessä laitteen ääntä ei käytetä', (await nSpoken(kp)) === 0);
+      const rates = await kp.evaluate(() => window.__audios.slice(-2).map((a) => a.playbackRate));
+      check('oletusnopeudella leikkeet toistetaan omalla nopeudellaan', rates.length === 2 && rates.every((r) => Math.abs(r - 1) < 0.001), JSON.stringify(rates));
+      await idle(kp);
+      await kp.click('.runner-box .example .btn.slow');
+      await waitPlayed(kp, before + 3);
+      st = await stats(kp);
+      check('"Hitaasti" toistaa erikseen generoidun hitaan leikkeen', st.played[before + 2] === manifest.slow[EXAMPLE] && manifest.slow[EXAMPLE] !== manifest.normal[EXAMPLE], st.played[before + 2]);
+      const slowRate = await kp.evaluate(() => window.__audios.at(-1).playbackRate);
+      check('hidas leike toistetaan sellaisenaan (se on jo hidas)', Math.abs(slowRate - 1) < 0.001, String(slowRate));
+      await idle(kp);
+      await kp.evaluate(() => window.__englanti.saveSettings({ rate: 1.0 }));
+      await kp.click('.runner-box .phrase-row .icon-btn.speak');
+      await waitPlayed(kp, before + 4);
+      const fast = await kp.evaluate(() => window.__audios.at(-1).playbackRate);
+      check('puhenopeus-asetus skaalaa toistoa (1,0 / 0,85)', Math.abs(fast - 1 / 0.85) < 0.01, String(fast));
+      await kp.evaluate(() => window.__englanti.saveSettings({ rate: 0.85 }));
+      await idle(kp);
+      await kp.click('.runner-box .example .icon-btn.speak');
+      await waitPlayed(kp, before + 5);
+      check('leike soi, kun sitä pysäytetään', await kp.evaluate(() => window.__audios.at(-1).paused === false));
+      await kp.click('.runner-box .actions .btn.primary');
+      check('tehtävän päättäminen pysäyttää leikkeen', await kp.evaluate(() => window.__audios.every((a) => a.paused || a.ended)));
+      check('mikään luettu teksti ei puuttunut leikkeistä', (await stats(kp)).missing.length === 0, (await stats(kp)).missing.join(' | '));
+    });
+
+    await runOn(kp, 'kokoro: laitteen oma ääni valittavissa', async () => {
+      await go(kp, base2);
+      await kp.click('#view h1');
+      await kp.evaluate(async () => {
+        await window.__englanti.saveSettings({ voiceURI: 'device' });
+        window.__spoken.length = 0;
+      });
+      await showTeach(kp);
+      await kp.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+      const spoken = await kp.evaluate(() => [...window.__spoken]);
+      check('valittu laitteen ääni lukee ilmauksen ja esimerkin (ei leikkeitä)', spoken[0] === PHRASE && spoken[1] === EXAMPLE && (await stats(kp)).played.length === 0, JSON.stringify(spoken));
+      await kp.evaluate(() => window.__englanti.saveSettings({ voiceURI: '' }));
+    });
+
+    await runOn(kp, 'kokoro: koko sessio', async () => {
+      await go(kp, base2);
+      await kp.evaluate(() => (window.__spoken.length = 0));
+      await kp.click('a.btn.primary.big[href="#/session"]');
+      await kp.waitForSelector('.runner');
+      const res = await playRunner(kp, { prod: 'type' });
+      const st = await stats(kp);
+      const kinds = new Set(res.log.map((l) => l.kind));
+      check('sessio pelataan loppuun Kokoro-äänillä', res.end === 'summary' && kinds.has('teach') && kinds.has('shadow'), `${res.end} ${[...kinds]}`);
+      check('sessiossa soi leikkeitä', st.played.length >= 10, String(st.played.length));
+      check('sessiossa ei puuttunut yhtään leikettä (kaikki luettavat tekstit on esiäänitetty)', st.missing.length === 0, st.missing.join(' | '));
+      check('sessiossa ei tarvittu laitteen ääntä eikä leikkeiden haku epäonnistunut', (await nSpoken(kp)) === 0 && st.failed === 0, `spoken ${await nSpoken(kp)}, failed ${st.failed}`);
+    });
+
+    await runOn(kp, 'kokoro: lataus offline-käyttöön', async () => {
+      await go(kp, base2, 'settings');
+      await kp.evaluate(async () => (await navigator.serviceWorker.ready, true));
+      await kp.waitForFunction(() => /äänitettä/.test(document.querySelector('#s-clip-info')?.textContent ?? ''), null, { timeout: 8000 });
+      await kp.click('#s-clip-load');
+      await kp.waitForFunction((n) => new RegExp(`ladattu ${n} / ${n}`).test(document.querySelector('#s-clip-info')?.textContent ?? ''), clipCount, { timeout: 60000 });
+      check('lataus tallentaa kaikki leikkeet laitteelle', true);
+      check('lataa-painike poistuu käytöstä, kun kaikki on ladattu', await kp.isDisabled('#s-clip-load'));
+      const cached = await kp.evaluate(async () => {
+        const c = await caches.open('englanti-audio-v1');
+        const urls = (await c.keys()).map((r) => new URL(r.url).pathname);
+        return { ogg: urls.filter((u) => u.endsWith('.ogg')).length, manifest: urls.some((u) => u.endsWith('/audio/manifest.json')), keys: await caches.keys() };
+      });
+      check('äänivälimuistissa on kaikki leikkeet ja manifesti', cached.ogg === clipCount && cached.manifest, JSON.stringify(cached));
+      check('äänet ovat omassa välimuistissaan, erillään sovelluskuoresta', cached.keys.includes('englanti-audio-v1') && cached.keys.filter((x) => /^englanti-[0-9a-f]{10}$/.test(x)).length === 1, cached.keys.join(','));
+      const controlled = await kp.evaluate(() => Boolean(navigator.serviceWorker.controller));
+      if (!controlled) {
+        await kp.reload();
+        await kp.waitForSelector('#view h1');
+      }
+      await k.context.setOffline(true);
+      await kp.reload();
+      await kp.waitForSelector('#view h1', { timeout: 10000 });
+      await kp.click('#view h1');
+      await showTeach(kp);
+      await kp.waitForSelector('.runner-box .phrase-row');
+      await waitPlayed(kp, 2);
+      const st = await stats(kp);
+      check('ilman verkkoa ladatut Kokoro-äänet soivat', st.played[0] === manifest.normal[PHRASE] && st.played[1] === manifest.normal[EXAMPLE] && (await nSpoken(kp)) === 0, JSON.stringify(st));
+      await idle(kp);
+      await k.context.setOffline(false);
+    });
+    check('Kokoro-testeissä ei konsolivirheitä eikä epäonnistuneita pyyntöjä', k.problems.length === 0, k.problems.join(' | '));
+
+    // Varakäyttäytyminen: ilman service workeria reitit voivat muuttaa manifestia ja pudottaa yksittäisiä leikkeitä.
+    const k2 = await launch({ serviceWorkers: 'block', audioSpy: true });
+    const kp2 = k2.page;
+    await runOn(kp2, 'kokoro: puuttuva leike → laitteen ääni', async () => {
+      await kp2.route('**/audio/manifest.json', (route) => {
+        const m = JSON.parse(JSON.stringify(manifest));
+        delete m.normal[EXAMPLE];
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(m) });
+      });
+      await go(kp2, base2);
+      await kp2.click('#view h1');
+      await showTeach(kp2);
+      await kp2.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+      const spoken = await kp2.evaluate(() => [...window.__spoken]);
+      const st = await stats(kp2);
+      check('jos esimerkin leike puuttuu, koko jono luetaan laitteen äänellä', spoken[0] === PHRASE && spoken[1] === EXAMPLE && st.played.length === 0, JSON.stringify(spoken));
+      check('puuttuva teksti kirjataan', st.missing.includes(EXAMPLE), JSON.stringify(st.missing));
+      await kp2.unroute('**/audio/manifest.json');
+    });
+    await runOn(kp2, 'kokoro: leikkeen haku epäonnistuu → laitteen ääni', async () => {
+      const bad = new RegExp(`/audio/${manifest.normal[PHRASE]}\\.ogg$`);
+      await kp2.route(bad, (route) => route.abort());
+      await go(kp2, base2);
+      await kp2.click('#view h1');
+      await showTeach(kp2);
+      await kp2.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+      const spoken = await kp2.evaluate(() => [...window.__spoken]);
+      const st = await stats(kp2);
+      check('jos leikettä ei saada ladattua, teksti luetaan laitteen äänellä', spoken[0] === PHRASE && spoken[1] === EXAMPLE && st.failed >= 1, JSON.stringify({ spoken, failed: st.failed }));
+      await kp2.unroute(bad);
+    });
+    await runOn(kp2, 'kokoro: manifestia ei saada → laitteen ääni', async () => {
+      await kp2.route('**/audio/manifest.json', (route) => route.fulfill({ status: 404, body: 'ei löydy' }));
+      await go(kp2, base2);
+      await kp2.click('#view h1');
+      await showTeach(kp2);
+      await kp2.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+      check('ilman manifestia kaikki luetaan laitteen äänellä', (await nSpoken(kp2)) >= 2 && (await stats(kp2)).played.length === 0);
+      await navTo(kp2, 'settings');
+      await kp2.waitForFunction(() => /ei ole vielä saatavilla/.test(document.querySelector('#s-clip-info')?.textContent ?? ''), null, { timeout: 8000 });
+      check('asetukset kertovat, ettei Kokoro-ääniä ole saatavilla', await kp2.isDisabled('#s-clip-load'));
+      await kp2.unroute('**/audio/manifest.json');
+    });
+    kokoroProblems = [];
+    await k2.browser.close();
+    await k.browser.close();
+    await srv2.close();
+    fs.rmSync(siteDir, { recursive: true, force: true });
+  }
 
   const allProblems = [...problems, ...fresh.problems];
   console.log('\nKonsoli- ja verkkovirheet:', allProblems.length ? '\n  ' + [...new Set(allProblems)].join('\n  ') : 'ei yhtään');

@@ -1,7 +1,9 @@
 // Yhteiset käyttöliittymän osat: kuvakkeet, ilmoitukset, vahvistusikkuna, äänipainike.
 
 import { h, en } from './util.js';
-import { speak, speakSequence, stopSpeaking, ttsSupported } from './speech.js';
+import { speak, speakSequence, stopSpeaking, canSpeak } from './speech.js';
+import { warmClips } from './clips.js';
+import { speakable } from './speakable.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -134,7 +136,8 @@ export function speakButton(getText, ctx, { label = 'Kuuntele', autoText = null,
   };
   /** auto = true: automaattinen toisto. Silloin epäonnistuminen on hiljaista, eikä toistoa yritetä ilman käyttäjän kosketusta. */
   const play = async ({ auto = false, slow: slowly = false } = {}) => {
-    if (!ttsSupported()) {
+    const s = ctx.settings();
+    if (!canSpeak(s.voiceURI)) {
       if (!auto) toast('Tällä selaimella ei ole puhesynteesiä.');
       return undefined;
     }
@@ -145,14 +148,25 @@ export function speakButton(getText, ctx, { label = 'Kuuntele', autoText = null,
       return undefined;
     }
     set(true, slowly ? 'slow' : 'normal');
-    const s = ctx.settings();
-    const opts = { rate: slowly ? Math.max(0.5, s.rate * 0.7) : s.rate, voiceURI: s.voiceURI };
+    // rate: laitteen ääni (hitaasti = 0,7 ×); slow ja userRate: esiäänitetyt leikkeet (hidas leike on erikseen generoitu).
+    const opts = { rate: slowly ? Math.max(0.5, s.rate * 0.7) : s.rate, voiceURI: s.voiceURI, slow: slowly, userRate: s.rate };
     const text = auto && autoText ? autoText() : getText();
     const res = Array.isArray(text) ? await speakSequence(text, opts) : await speak(text, opts);
     set(false);
     if (!auto && !res.ok && res.kind !== 'unsupported') toast('Ääntä ei saatu toistettua. Kokeile asetuksista jotakin muuta ääntä.');
     return res;
   };
+  // Haetaan leikkeet valmiiksi, jotta toisto alkaa heti kun harjoitus on näkyvissä.
+  queueMicrotask(() => {
+    try {
+      if (ctx.settings().voiceURI) return; // vain "Automaattinen" käyttää esiäänitettyjä leikkeitä
+      const wanted = [getText(), autoText?.()].flat().filter(Boolean).map(speakable);
+      warmClips(wanted);
+      if (slow) warmClips([getText()].flat().map(speakable), { slow: true });
+    } catch {
+      /* ennakkohaku on vain nopeutus */
+    }
+  });
   btn.addEventListener('click', () => play());
   slowEl?.addEventListener('click', () => play({ slow: true }));
   return { el: btn, slowEl, play };

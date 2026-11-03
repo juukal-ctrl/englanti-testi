@@ -40,6 +40,8 @@ Opetusjärjestys on `UNIT_ORDER`-listassa.
 - Kaiutinpainike lukee aina sen tekstin, joka on painikkeen vieressä (ilmaus tai esimerkkilause). Automaattinen toisto lukee ilmauksen ja sen jälkeen esimerkkilauseen.
 - Kirjoita päivämäärät ja numerot numeroina (`October 3`, `at 3 p.m.`). Äänentoisto muuttaa päivämäärän järjestysluvuksi (*October third*), ja täsmäys hyväksyy numeron kaikissa muodoissa (`3`, `third`, `three`), joten oppijaa ei rangaista siitä, että hän sanoo päivämäärän oikein.
 - `…` (aukko) ja `…-ing` jätetään lukematta. Aukon sisältävän ilmauksen esimerkin pitää sisältää ilmauksen alku, jotta se voidaan kuunnella kokonaisena.
+- Kaikki luettavat tekstit äänitetään valmiiksi Kokoro-äänellä (ks. README: Äänet). Kun `data/units.js` muuttuu, GitHub Actions tekee puuttuvat äänet itse noin 5–10 minuutissa; siihen asti uusi teksti luetaan laitteen äänellä. Teksti, jota Actions ei tunne (esim. uudenlainen harjoitus, joka lukee jotakin muuta), pitää lisätä luetteloon `tools/tts/texts.mjs`; selaintesti huomauttaa, jos istunnossa luetaan teksti, jolle ei ole leikettä.
+- Lyhenteet (*PO*, *API*) luetaan kirjain kerrallaan, jos Kokoro tunnistaa ne lyhenteiksi. Jos ääni lukee sanan väärin, lisää korjaus tiedostoon `tools/tts/respell.json` (se koskee vain äänitystä) tai ilmoita virheestä.
 
 ## Laatulista uudelle sisällölle
 

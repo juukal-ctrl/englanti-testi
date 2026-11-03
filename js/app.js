@@ -6,6 +6,7 @@ import { Srs } from './srs.js';
 import { CATALOG } from './content.js';
 import { DEFAULT_SETTINGS, sanitizeSettings } from './settings.js';
 import { stopSpeaking } from './speech.js';
+import { loadManifest, clipStats } from './clips.js';
 import { toast, icon } from './ui.js';
 import { APP_VERSION } from './version.js';
 import * as today from './views/today.js';
@@ -75,7 +76,9 @@ async function main() {
     },
     persisted: null,
   };
+  ctx.clipStats = clipStats; // toistetut ja puuttuvat äänileikkeet (testit, virheenjäljitys)
   window.__englanti = ctx; // testejä ja virheenjäljitystä varten
+  loadManifest(); // esiäänitettyjen äänien luettelo valmiiksi ennen ensimmäistä toistoa
 
   applySettings(settings);
   for (const el of document.querySelectorAll('.ico[data-icon]')) el.append(icon(el.dataset.icon));

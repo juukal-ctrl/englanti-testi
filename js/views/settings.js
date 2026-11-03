@@ -2,6 +2,8 @@ import { h } from '../util.js';
 import { confirmDialog, choiceDialog, toast, speakButton } from '../ui.js';
 import { exportBackup, importBackup, validateBackup } from '../db.js';
 import { loadVoices, rankVoices, asrSupported, ttsSupported } from '../speech.js';
+import { clipSummary, prefetchAll } from '../clips.js';
+import { VOICE_TEST_TEXT } from '../speakable.js';
 import { DEFAULT_SETTINGS } from '../settings.js';
 
 const MAX_IMPORT_BYTES = 30 * 1024 * 1024;
@@ -35,7 +37,7 @@ function select(ctx, key, id, options) {
 /** Käytössä olevan sovelluskuoren tunniste (service workerin välimuistin nimestä), jotta päivityksen näkee. */
 async function buildId() {
   try {
-    const key = (await caches.keys()).find((k) => k.startsWith('englanti-'));
+    const key = (await caches.keys()).find((k) => /^englanti-[0-9a-f]{10}$/.test(k)); // ei äänivälimuistia (englanti-audio-…)
     return key ? key.slice('englanti-'.length) : '';
   } catch {
     return '';
@@ -67,11 +69,44 @@ export async function mount(root, ctx) {
     ),
   );
 
-  const voiceSel = h('select', { id: 's-voice', class: 'text-input' }, h('option', { value: '' }, 'Automaattinen'));
-  const testBtn = speakButton(() => 'Could you possibly send me the updated report by noon?', ctx, { label: 'Testaa ääni' });
+  const voiceSel = h(
+    'select',
+    { id: 's-voice', class: 'text-input' },
+    h('option', { value: '' }, 'Automaattinen (Kokoro, muuten laitteen ääni)'),
+    h('option', { value: 'device' }, 'Laitteen oma ääni (paras englanninkielinen)'),
+  );
+  const testBtn = speakButton(() => VOICE_TEST_TEXT, ctx, { label: 'Testaa ääni' });
   voiceSel.addEventListener('change', async () => {
     await ctx.saveSettings({ voiceURI: voiceSel.value });
+    refreshClips();
   });
+
+  // Esiäänitetyt Kokoro-äänet: tila ja lataus laitteelle (toimii sen jälkeen ilman verkkoa).
+  const clipInfo = h('p', { class: 'help', id: 's-clip-info', role: 'status', 'aria-live': 'polite' }, 'Tarkistetaan Kokoro-ääniä…');
+  const clipBtn = h('button', { class: 'btn small', type: 'button', id: 's-clip-load', disabled: true }, 'Lataa äänet offline-käyttöön');
+  let loadingClips = false;
+  const refreshClips = async () => {
+    if (loadingClips) return;
+    const sum = await clipSummary();
+    if (!sum.available) {
+      clipInfo.textContent = 'Kokoro-ääniä ei ole vielä saatavilla, joten käytössä on laitteen oma ääni.';
+      clipBtn.disabled = true;
+      return;
+    }
+    const mb = (sum.bytes / 1024 / 1024).toFixed(1).replace('.', ',');
+    const usedNow = ctx.settings().voiceURI === '' ? 'Käytössä.' : 'Ei käytössä, koska ääneksi on valittu laitteen ääni.';
+    clipInfo.textContent = `Kokoro-äänet (${sum.voice}): ${sum.count} äänitettä, noin ${mb} Mt. Laitteelle ladattu ${sum.cached} / ${sum.count}. ${usedNow}`;
+    clipBtn.disabled = sum.cached >= sum.count;
+  };
+  clipBtn.addEventListener('click', async () => {
+    loadingClips = true;
+    clipBtn.disabled = true;
+    const res = await prefetchAll({ onProgress: ({ done, total }) => (clipInfo.textContent = `Ladataan ääniä… ${done} / ${total}`) });
+    loadingClips = false;
+    await refreshClips();
+    toast(res.failed ? `${res.failed} äänitettä ei latautunut. Yritä uudelleen, kun verkko toimii.` : 'Äänet on ladattu laitteelle.');
+  });
+  refreshClips();
   loadVoices().then((voices) => {
     for (const v of rankVoices(voices)) {
       voiceSel.append(h('option', { value: v.voiceURI }, `${v.name} (${v.lang}, ${v.localService ? 'laitteella' : 'verkossa'})`));
@@ -88,7 +123,8 @@ export async function mount(root, ctx) {
       { class: 'card' },
       h('h2', {}, 'Ääni ja puhe'),
       ttsSupported() ? null : h('p', { class: 'banner warn' }, 'Tällä selaimella ei ole puhesynteesiä.'),
-      field('Ääni', h('div', { class: 'range-row' }, voiceSel, testBtn.el), 'Automaattinen valitsee parhaan englanninkielisen äänen. Laitteella toimiva ääni toimii myös ilman verkkoa.', 's-voice'),
+      field('Ääni', h('div', { class: 'range-row' }, voiceSel, testBtn.el), 'Automaattinen käyttää esiäänitettyä Kokoro-ääntä, kun se on saatavilla, ja muuten laitteen ääntä. Laitteen oma ääni toimii aina ilman verkkoa.', 's-voice'),
+      h('div', { class: 'field' }, clipInfo, clipBtn),
       field('Puhenopeus', range(ctx, 'rate', { id: 's-rate', min: 0.6, max: 1.2, step: 0.05, format: (v) => `${v.toFixed(2).replace('.', ',')} ×` }), 'Harjoituksissa on lisäksi "Hitaasti"-painike, joka lukee lauseen vielä hitaammin.', 's-rate'),
       toggle(ctx, 'autoplay', 's-auto', 'Toista ääni automaattisesti', 'Uuden ilmauksen ja vastauksen yhteydessä.'),
       h(
