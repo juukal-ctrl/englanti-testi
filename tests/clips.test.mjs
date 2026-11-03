@@ -147,6 +147,16 @@ test('generate.py --fake: tuottaa Opus-leikkeet ja manifestin, ohittaa valmiit j
     assert.equal(second.status, 0);
     assert.match(second.stdout, /generoitavia 0/);
 
+    // Oppijalle sopiva vauhti: hidas selvästi hitaampi kuin normaali, eikä normaali ole mallin kiireisin vauhti.
+    assert.ok(manifest.speeds.slow < manifest.speeds.normal && manifest.speeds.normal <= 0.85 && manifest.speeds.slow >= 0.5, JSON.stringify(manifest.speeds));
+
+    // Foneemiraportti vaatii oikean mallin: testiäänillä se ohitetaan, eikä se kaada ajoa.
+    const phFile = join(dir, 'ph.tsv');
+    const ph = run([...base, '--phonemes-out', phFile]);
+    assert.equal(ph.status, 0, ph.stdout + ph.stderr);
+    assert.match(ph.stdout, /Foneemiraporttia ei tehdä/);
+    assert.equal(existsSync(phFile), false);
+
     // Poistunut teksti siivotaan, uusi generoidaan.
     writeFileSync(textsFile, JSON.stringify({ normal: ['Hello there.', 'Brand new.'], slow: [] }));
     assert.equal(run([...base, '--plan']).stdout.trim(), '1');

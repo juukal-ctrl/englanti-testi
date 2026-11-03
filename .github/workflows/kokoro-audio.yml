@@ -1,6 +1,7 @@
 # Generoi esiäänitetyt Kokoro-äänet (audio/) ja tallentaa ne repoon. GitHub Pages julkaisee ne sovelluksen mukana.
 # Ajetaan, kun sisältö tai generointi muuttuu. Jo olemassa olevia leikkeitä ei generoida uudelleen.
-# Virhetilanteessa loki päätyy haaraan kokoro-log (build.log), josta sen voi lukea ilman Actions-käyttöliittymää.
+# Loki (build.log), manifesti ja foneemiraportti (phonemes.tsv: miten Kokoro lukee kunkin tekstin) päätyvät haaraan kokoro-log,
+# josta ne voi lukea ilman Actions-käyttöliittymää.
 name: Kokoro audio
 
 on:
@@ -60,7 +61,6 @@ jobs:
           echo "missing=$missing" >> "$GITHUB_OUTPUT"
 
       - name: System packages
-        if: steps.plan.outputs.missing != '0'
         run: |
           {
             sudo apt-get update -qq
@@ -69,7 +69,6 @@ jobs:
           } 2>&1 | tail -20 | tee -a build/build.log
 
       - name: Cache models and packages
-        if: steps.plan.outputs.missing != '0'
         uses: actions/cache@v4
         with:
           path: |
@@ -78,7 +77,6 @@ jobs:
           key: kokoro-${{ runner.os }}-${{ hashFiles('tools/tts/requirements.txt') }}
 
       - name: Python packages
-        if: steps.plan.outputs.missing != '0'
         run: |
           {
             python -m pip install --upgrade pip
@@ -93,7 +91,7 @@ jobs:
         run: |
           args=""
           if [ "${{ inputs.force }}" = "true" ]; then args="--force"; fi
-          python tools/tts/generate.py --texts build/texts.json --out audio $args 2>&1 | tee -a build/build.log
+          python tools/tts/generate.py --texts build/texts.json --out audio --phonemes-out build/phonemes.tsv $args 2>&1 | tee -a build/build.log
 
       - name: Commit audio
         id: commit
@@ -141,6 +139,7 @@ jobs:
           mkdir -p /tmp/logpub && cd /tmp/logpub
           cp "$GITHUB_WORKSPACE/build/build.log" build.log 2>/dev/null || echo "ei lokia" > build.log
           cp "$GITHUB_WORKSPACE/audio/manifest.json" manifest.json 2>/dev/null || true
+          cp "$GITHUB_WORKSPACE/build/phonemes.tsv" phonemes.tsv 2>/dev/null || true
           printf 'job: %s\nrun: %s\ncommit: %s\n' "${{ job.status }}" "${{ github.run_id }}" "${{ github.sha }}" > status.txt
           git init -q -b kokoro-log
           git config user.name "github-actions[bot]"

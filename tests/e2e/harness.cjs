@@ -16,7 +16,14 @@ const TYPES = {
   '.png': 'image/png',
 };
 
-async function serve(root) {
+const EMPTY_AUDIO_MANIFEST = '{"bytes":0,"engine":"none","normal":{},"slow":{},"speeds":{},"version":1,"voice":""}\n';
+
+/**
+ * Palvelee hakemiston GitHub Pages -alipolussa. withoutAudio: audio/-hakemiston oikeat leikkeet piilotetaan (tyhjä
+ * manifesti), jolloin sovellus lukee tekstit laitteen äänellä (puheen valeet), kuten ennen Kokoro-ääniä. Näin
+ * yleiset testit eivät riipu siitä, mitä Actions on repoon generoinut; Kokoro-osio palvelee omaa kopiotaan.
+ */
+async function serve(root, { withoutAudio = false } = {}) {
   const ROOT = path.resolve(root);
   const sockets = new Set();
   const server = http.createServer((req, res) => {
@@ -27,6 +34,14 @@ async function serve(root) {
     }
     let rel = decodeURIComponent(url.pathname.slice(PREFIX.length));
     if (rel === '' || rel.endsWith('/')) rel += 'index.html';
+    if (withoutAudio && rel.startsWith('audio/')) {
+      if (rel === 'audio/manifest.json') {
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-cache' });
+        return res.end(EMPTY_AUDIO_MANIFEST);
+      }
+      res.writeHead(404);
+      return res.end('no audio');
+    }
     const file = path.join(ROOT, rel);
     if (!file.startsWith(ROOT + path.sep) || rel.startsWith('.git') || rel.startsWith('tests') || rel.startsWith('tools')) {
       res.writeHead(403);

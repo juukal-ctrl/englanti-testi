@@ -192,7 +192,7 @@ const dbState = (page) =>
   });
 
 (async () => {
-  const srv = await serve(path.join(__dirname, '..', '..'));
+  const srv = await serve(path.join(__dirname, '..', '..'), { withoutAudio: true }); // yleiset testit: laitteen ääni, ei repon Kokoro-leikkeitä
   const { browser, context, page, problems } = await launch();
   const base = srv.base;
   const run = async (name, fn) => {

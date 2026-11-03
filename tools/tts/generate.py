@@ -29,7 +29,9 @@ SAMPLE_RATE = 24000  # Kokoron tuottama näytteenottotaajuus
 PIPELINE_REV = 1  # kasvata, kun jälkikäsittely tai koodaus muuttuu: kaikki leikkeet generoidaan silloin uudelleen
 ENGINE = 'kokoro-82m'
 DEFAULT_VOICE = 'af_heart'  # amerikanenglantia, nainen
-SPEEDS = {'normal': 0.9, 'slow': 0.65}  # Kokoron speed-parametri; 1.0 olisi mallin oma vauhti
+# Kokoron speed-parametri; 1.0 olisi mallin oma vauhti. Mitattu ensimmäisellä ajolla: 0.9 → noin 190 sanaa minuutissa (liian
+# nopea oppijalle), 0.65 → noin 130. Tavoite: normaali noin 155–160 sanaa/min, "Hitaasti" noin 115–120 sanaa/min.
+SPEEDS = {'normal': 0.76, 'slow': 0.6}
 OPUS_KBPS = 24
 TARGET_RMS = 0.085  # noin -21 dBFS aktiivisista näytteistä
 PEAK_LIMIT = 0.95
@@ -101,6 +103,37 @@ class KokoroSynth:
         if not chunks:
             raise RuntimeError('Kokoro ei tuottanut ääntä')
         return np.concatenate(chunks)
+
+
+def phoneme_report(spoken_texts, out_path):
+    """Kirjoittaa jokaisen äänitettävän tekstin foneemit (Kokoron G2P, ilman mallia) TSV-tiedostoon.
+
+    Näin ääntämisen voi tarkistaa lukemalla foneemit kuuntelematta ääntä. Sarakkeet: teksti, foneemit sekä ne sanat, joita
+    ei löytynyt sanakirjasta kultaisella luokituksella (teksti/foneemit/luokitus; luokitus 4 = kultainen sanakirja,
+    3 = hopea, pienempi = arvaus tai espeak-varasanakirja, jotka ovat todennäköisimpiä virheellisiä ääntämisiä).
+    """
+    from kokoro import KPipeline  # noqa: PLC0415
+
+    t0 = time.time()
+    pipeline = KPipeline(lang_code='a', repo_id='hexgrad/Kokoro-82M', model=False)
+    lines = ['teksti\tfoneemit\tepävarmat sanat']
+    unsure_total = 0
+    for text in spoken_texts:
+        unsure = []
+        try:
+            phonemes, tokens = pipeline.g2p(text)
+            for tk in tokens:
+                rating = getattr(getattr(tk, '_', None), 'rating', None)
+                ps = getattr(tk, 'phonemes', '') or ''
+                if rating != 4 or not ps or '❓' in ps:
+                    unsure.append(f"{getattr(tk, 'text', '?')}/{ps or '∅'}/{rating}")
+        except Exception as e:  # noqa: BLE001
+            phonemes = f'VIRHE {type(e).__name__}: {e}'
+        unsure_total += bool(unsure)
+        lines.append('\t'.join([text.replace('\t', ' '), phonemes.replace('\t', ' '), ' '.join(unsure)]))
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(out_path).write_text('\n'.join(lines) + '\n', encoding='utf-8')
+    log(f'Foneemit: {len(spoken_texts)} tekstiä, joista {unsure_total} sisältää epävarmoja sanoja ({time.time() - t0:.1f} s) → {out_path}')
 
 
 def fake_synth(text, speed):
@@ -191,6 +224,7 @@ def main():
     ap.add_argument('--plan', action='store_true', help='tulosta vain puuttuvien leikkeiden määrä')
     ap.add_argument('--limit', type=int, default=0, help='generoi enintään näin monta puuttuvaa leikettä (savutesti)')
     ap.add_argument('--force', action='store_true', help='generoi kaikki uudelleen')
+    ap.add_argument('--phonemes-out', help='kirjoita äänitettävien tekstien foneemit (ääntämisen tarkistus) tähän TSV-tiedostoon')
     args = ap.parse_args()
 
     texts = json.loads(Path(args.texts).read_text(encoding='utf-8'))
@@ -208,6 +242,14 @@ def main():
         return 0
 
     log(f'Tekstejä {len(jobs)} (normaali {len(texts.get("normal", []))}, hidas {len(texts.get("slow", []))}), generoitavia {len(todo)}')
+    if args.phonemes_out:
+        if args.fake:
+            log('Foneemiraporttia ei tehdä testiäänillä (--fake)')
+        else:
+            try:
+                phoneme_report(sorted({j['spoken'] for j in jobs}), args.phonemes_out)
+            except Exception as e:  # noqa: BLE001 - raportti on apuväline, se ei saa kaataa äänten generointia
+                log(f'Foneemiraportti epäonnistui: {type(e).__name__}: {e}')
     if args.limit:
         todo = todo[: args.limit]
     failures = []
