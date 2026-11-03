@@ -1,0 +1,232 @@
+Puuttuvia leikkeitä: 137
+Setting up espeak-ng (1.51+dfsg-12build1) ...
+Setting up libavfilter9:amd64 (7:6.1.1-3ubuntu5) ...
+Setting up libavdevice60:amd64 (7:6.1.1-3ubuntu5) ...
+Setting up ffmpeg (7:6.1.1-3ubuntu5) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Not building database; man-db/auto-update is not 'true'.
+Processing triggers for libgdk-pixbuf-2.0-0:amd64 (2.42.10+dfsg-3ubuntu3.3) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+
+Running kernel seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+ A..X.D opus                 Opus
+ A....D libopus              libopus Opus (codec opus)
+Using cached cymem-2.0.16-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (253 kB)
+Using cached murmurhash-1.0.16-cp311-cp311-manylinux1_x86_64.manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_5_x86_64.whl (127 kB)
+Using cached preshed-3.0.15-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (883 kB)
+Using cached pydantic-2.14.2-py3-none-any.whl (490 kB)
+Using cached pydantic_core-2.50.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (2.2 MB)
+Using cached requests-2.34.2-py3-none-any.whl (73 kB)
+Using cached charset_normalizer-3.5.2-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (269 kB)
+Using cached spacy_legacy-3.0.12-py2.py3-none-any.whl (29 kB)
+Using cached spacy_loggers-1.0.5-py3-none-any.whl (22 kB)
+Using cached srsly-2.5.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.2 MB)
+Using cached thinc-8.3.14-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (4.5 MB)
+Using cached blis-1.3.4-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (14.3 MB)
+Using cached typer-0.27.3-py3-none-any.whl (123 kB)
+Using cached urllib3-2.8.0-py3-none-any.whl (135 kB)
+Using cached wasabi-1.1.3-py3-none-any.whl (27 kB)
+Using cached weasel-1.0.1-py3-none-any.whl (51 kB)
+Using cached annotated_doc-0.0.5-py3-none-any.whl (5.3 kB)
+Using cached annotated_types-0.8.0-py3-none-any.whl (13 kB)
+Using cached certifi-2026.10.23-py3-none-any.whl (135 kB)
+Using cached cloudpathlib-0.26.0-py3-none-any.whl (66 kB)
+Using cached httpx-0.28.1-py3-none-any.whl (73 kB)
+Using cached httpcore-1.0.9-py3-none-any.whl (78 kB)
+Using cached rich-15.0.0-py3-none-any.whl (310 kB)
+Using cached pygments-2.21.0-py3-none-any.whl (1.3 MB)
+Using cached markdown_it_py-4.2.0-py3-none-any.whl (91 kB)
+Using cached mdurl-0.1.2-py3-none-any.whl (10.0 kB)
+Using cached shellingham-1.5.4-py2.py3-none-any.whl (9.8 kB)
+Using cached smart_open-9.0.2-py3-none-any.whl (76 kB)
+Using cached typing_inspection-0.4.4-py3-none-any.whl (14 kB)
+Using cached spacy_curated_transformers-0.3.1-py2.py3-none-any.whl (237 kB)
+Using cached curated_tokenizers-0.0.10-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (6.3 MB)
+Using cached curated_transformers-0.1.1-py2.py3-none-any.whl (25 kB)
+Using cached termcolor-3.3.0-py3-none-any.whl (7.7 kB)
+Using cached transformers-5.22.1-py3-none-any.whl (13.1 MB)
+Using cached tokenizers-0.23.3-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.4 MB)
+Using cached safetensors-0.8.0-cp310-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (516 kB)
+Using cached tzdata-2026.6-py2.py3-none-any.whl (348 kB)
+Using cached wrapt-2.5.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (240 kB)
+Installing collected packages: rfc3986, docopt, addict, wrapt, wasabi, urllib3, uritemplate, tzdata, typing-inspection, truststore, tqdm, termcolor, spacy-loggers, spacy-legacy, shellingham, safetensors, rpds-py, regex, pyyaml, pyparsing, pygments, pydantic-core, pycparser, packaging, numpy, num2words, murmurhash, mdurl, loguru, language-tags, isodate, idna, hf-xet, h11, espeakng-loader, dlinfo, cymem, confection, cloudpickle, cloudpathlib, click, charset_normalizer, certifi, catalogue, babel, attrs, annotated-types, annotated-doc, srsly, smart-open, requests, referencing, rdflib, python-dateutil, pydantic, preshed, misaki, markdown-it-py, joblib, httpcore2, httpcore, curated-tokenizers, cffi, blis, anyio, thinc, soundfile, rich, jsonschema-specifications, httpx2, httpx, curated-transformers, typer, spacy-curated-transformers, jsonschema, huggingface-hub, weasel, tokenizers, csvw, transformers, spacy, segments, phonemizer-fork, kokoro
+
+Successfully installed addict-2.4.0 annotated-doc-0.0.5 annotated-types-0.8.0 anyio-4.16.0 attrs-26.1.0 babel-2.18.0 blis-1.3.4 catalogue-2.0.10 certifi-2026.10.23 cffi-2.1.1 charset_normalizer-3.5.2 click-8.5.0 cloudpathlib-0.26.0 cloudpickle-3.1.2 confection-1.3.4 csvw-4.1.1 curated-tokenizers-0.0.10 curated-transformers-0.1.1 cymem-2.0.16 dlinfo-2.0.0 docopt-0.6.2 espeakng-loader-0.2.4 h11-0.16.0 hf-xet-1.8.0 httpcore-1.0.9 httpcore2-2.16.0 httpx-0.28.1 httpx2-2.16.0 huggingface-hub-2.4.0 idna-3.20 isodate-0.7.2 joblib-1.6.0 jsonschema-4.26.0 jsonschema-specifications-2025.9.1 kokoro-0.9.4 language-tags-1.3.2 loguru-0.7.3 markdown-it-py-4.2.0 mdurl-0.1.2 misaki-0.9.4 murmurhash-1.0.16 num2words-0.5.14 numpy-2.4.6 packaging-26.3 phonemizer-fork-3.3.2 preshed-3.0.15 pycparser-3.12 pydantic-2.14.2 pydantic-core-2.50.2 pygments-2.21.0 pyparsing-3.3.3 python-dateutil-4.0.0 pyyaml-6.0.3 rdflib-7.6.0 referencing-0.37.0 regex-2026.9.29 requests-2.34.2 rfc3986-1.5.0 rich-15.0.0 rpds-py-2026.9.1 safetensors-0.8.0 segments-2.4.0 shellingham-1.5.4 smart-open-9.0.2 soundfile-0.14.0 spacy-3.8.18 spacy-curated-transformers-0.3.1 spacy-legacy-3.0.12 spacy-loggers-1.0.5 srsly-2.5.5 termcolor-3.3.0 thinc-8.3.14 tokenizers-0.23.3 tqdm-4.70.1 transformers-5.22.1 truststore-0.10.5 typer-0.27.3 typing-inspection-0.4.4 tzdata-2026.6 uritemplate-4.2.0 urllib3-2.8.0 wasabi-1.1.3 weasel-1.0.1 wrapt-2.5.2
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+Collecting en-core-web-sm==3.8.0
+  Downloading en_core_web_sm-3.8.0-py3-none-any.whl (12.8 MB)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 12.8/12.8 MB 247.1 MB/s  0:00:00
+Installing collected packages: en-core-web-sm
+Successfully installed en-core-web-sm-3.8.0
+[38;5;2m✔ Download and installation successful[0m
+You can now load the package via spacy.load('en_core_web_sm')
+huggingface_hub            2.4.0
+kokoro                     0.9.4
+misaki                     0.9.4
+numpy                      2.4.6
+spacy                      3.8.18
+spacy-curated-transformers 0.3.1
+spacy-legacy               3.0.12
+spacy-loggers              1.0.5
+torch                      2.15.0+cpu
+transformers               5.22.1
+Tekstejä 585 (normaali 321, hidas 264), generoitavia 137
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/jit/_script.py:1491: FutureWarning: `torch.jit.script` is deprecated. Please switch to `torch.compile` or `torch.export`.
+  warnings.warn(
+Foneemit: 321 tekstiä, joista 321 sisältää epävarmoja sanoja (1.5 s) → build/phonemes.tsv
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/nn/modules/rnn.py:1012: UserWarning: dropout option adds dropout after all but last recurrent layer, so non-zero dropout expects num_layers greater than 1, but got dropout=0.2 and num_layers=1
+  super().__init__("LSTM", *args, **kwargs)
+/opt/hostedtoolcache/Python/3.11.17/x64/lib/python3.11/site-packages/torch/nn/utils/weight_norm.py:145: FutureWarning: `torch.nn.utils.weight_norm` is deprecated in favor of `torch.nn.utils.parametrizations.weight_norm`.
+  WeightNorm.apply(module, name, dim)
+Kokoro ladattu 1.8 s, ääni af_heart
+[1/137] normal   8.6 s  24.9 kt rms -21.4 dB, työ 5.6 s: As I mentioned, I'm originally from Finland, and I work for a company that provides e-invoicing services.
+[2/137] normal   4.0 s  11.7 kt rms -21.4 dB, työ 2.4 s: As a compromise, we could offer 45 days.
+[3/137] normal   6.8 s  19.9 kt rms -21.4 dB, työ 4.0 s: As a workaround, you can send the most urgent invoices manually through the web portal.
+[4/137] normal   1.4 s   4.3 kt rms -21.4 dB, työ 1.2 s: Best regards,
+[5/137] normal   0.9 s   2.8 kt rms -21.4 dB, työ 0.9 s: Best,
+[6/137] normal   1.4 s   4.4 kt rms -21.4 dB, työ 1.2 s: Best, Henry
+[7/137] normal   1.9 s   5.4 kt rms -21.4 dB, työ 1.3 s: Can you give me an update?
+[8/137] normal   3.2 s   9.6 kt rms -21.4 dB, työ 2.0 s: Could you spell your colleague's email address for me?
+[9/137] normal   3.7 s  10.8 kt rms -21.4 dB, työ 2.2 s: Could you walk me through the main changes on a quick call?
+[10/137] normal   1.6 s   4.6 kt rms -21.4 dB, työ 1.2 s: Hello Ms. Bennett,
+[11/137] normal   6.5 s  18.8 kt rms -21.4 dB, työ 3.8 s: Hello, since this morning our outgoing invoices are not reaching our customers.
+[12/137] normal   6.6 s  19.4 kt rms -21.4 dB, työ 3.8 s: Hi Alex, our CFO is asking when the new invoicing integration will go live.
+[13/137] normal   6.3 s  18.2 kt rms -21.4 dB, työ 3.8 s: Hi Alex, we'd like to extend our payment terms from 30 to 60 days.
+[14/137] normal   1.2 s   3.7 kt rms -21.4 dB, työ 1.1 s: Hi Daniel,
+[15/137] normal   1.2 s   3.7 kt rms -21.4 dB, työ 1.1 s: Hi David,
+[16/137] normal   1.2 s   3.6 kt rms -21.4 dB, työ 1.1 s: Hi Emily,
+[17/137] normal   1.2 s   3.7 kt rms -21.4 dB, työ 1.1 s: Hi Grace,
+[18/137] normal   1.2 s   3.5 kt rms -21.4 dB, työ 1.1 s: Hi Henry,
+[19/137] normal   2.3 s   6.8 kt rms -21.4 dB, työ 1.5 s: Hi Mark, sorry about that.
+[20/137] normal   1.2 s   3.6 kt rms -21.4 dB, työ 1.1 s: Hi Michael,
+[21/137] normal   1.2 s   3.5 kt rms -21.4 dB, työ 1.1 s: Hi Priya,
+[22/137] normal   1.1 s   3.3 kt rms -21.4 dB, työ 1.0 s: Hi Sarah,
+[23/137] normal   1.3 s   4.0 kt rms -21.4 dB, työ 1.1 s: Hi everyone,
+[24/137] normal   3.5 s  10.4 kt rms -21.4 dB, työ 2.1 s: I enjoyed our conversation about automation.
+[25/137] normal   3.2 s   9.6 kt rms -21.4 dB, työ 2.0 s: I need the numbers for a meeting that afternoon.
+[26/137] normal   3.6 s  10.7 kt rms -21.4 dB, työ 2.1 s: I see your point, but I have a slightly different view.
+[27/137] normal   5.1 s  14.9 kt rms -21.4 dB, työ 3.0 s: I think we should skip the second test round and go live on Monday.
+[28/137] normal   8.7 s  25.5 kt rms -21.4 dB, työ 5.3 s: I work as an application specialist in the invoicing team, and I'm responsible for our customer integrations.
+[29/137] normal   3.5 s  10.3 kt rms -21.4 dB, työ 2.1 s: I would be happy to set up a short call next week.
+[30/137] normal   5.4 s  15.8 kt rms -21.4 dB, työ 3.2 s: I'd appreciate it if you could find 15 minutes tomorrow or Wednesday.
+[31/137] normal   6.5 s  19.4 kt rms -21.4 dB, työ 4.0 s: I'd suggest we run a shorter test round on Friday and still go live on Monday.
+[32/137] normal   3.8 s  11.2 kt rms -21.4 dB, työ 2.3 s: I'll get back to you by Friday with a detailed schedule.
+[33/137] normal   6.9 s  19.8 kt rms -21.4 dB, työ 4.2 s: I'll need to check with my manager first, but I wanted to ask: is that acceptable to you?
+[34/137] normal   4.1 s  12.1 kt rms -21.4 dB, työ 2.4 s: I'll send you a calendar invite for Thursday at 2 p.m.
+[35/137] normal   5.6 s  16.3 kt rms -21.4 dB, työ 3.5 s: I'll take care of it today and send you a confirmation by the end of the day.
+[36/137] normal   2.6 s   7.5 kt rms -21.4 dB, työ 1.7 s: I'll update you as soon as I know more.
+[37/137] normal   3.8 s  11.4 kt rms -21.4 dB, työ 2.3 s: I'm happy to walk you through the process on a short call.
+[38/137] normal   4.4 s  13.3 kt rms -21.4 dB, työ 2.6 s: I'm interested in learning more about how your onboarding works.
+[39/137] normal   1.8 s   5.5 kt rms -21.4 dB, työ 1.3 s: I'm sorry for the delay.
+[40/137] normal   9.9 s  28.7 kt rms -21.4 dB, työ 6.1 s: I'm writing about invoice 10234 for €2,400, dated September fifteenth.
+[41/137] normal   5.9 s  17.3 kt rms -21.4 dB, työ 3.4 s: I'm writing to follow up on the e-invoicing setup guide I sent you last week.
+[42/137] normal   3.2 s   9.4 kt rms -21.4 dB, työ 2.0 s: If possible, could you reply by Friday?
+[43/137] normal   4.6 s  13.5 kt rms -21.4 dB, työ 2.6 s: If you have already paid it, could you send us the remittance advice?
+[44/137] normal   3.7 s  11.0 kt rms -21.4 dB, työ 2.2 s: It was nice meeting you at the conference yesterday.
+[45/137] normal   1.4 s   4.2 kt rms -21.4 dB, työ 1.2 s: Kind regards,
+[46/137] normal   5.4 s  15.8 kt rms -21.4 dB, työ 3.1 s: Last time you said October fifteenth, but I haven't heard anything since.
+[47/137] normal   6.8 s  19.6 kt rms -21.4 dB, työ 3.9 s: Laura will take ownership of the testing, and I'll update the project schedule by Wednesday.
+[48/137] normal   5.6 s  16.4 kt rms -21.4 dB, työ 3.2 s: Let's stay in touch, and feel free to reach out if you ever want to compare notes.
+[49/137] normal   0.9 s   2.8 kt rms -21.4 dB, työ 1.0 s: Michael
+[50/137] normal   4.5 s  13.2 kt rms -21.4 dB, työ 2.6 s: Our payment terms are net 30, so the payment is past due.
+[51/137] normal   1.2 s   3.6 kt rms -21.4 dB, työ 1.1 s: Please help.
+[52/137] normal   5.9 s  17.1 kt rms -21.4 dB, työ 3.3 s: Please let me know if you have any questions or if you need help with the first steps.
+[53/137] normal   3.1 s   9.3 kt rms -21.4 dB, työ 1.9 s: Please reply to this email and let me know.
+[54/137] normal   1.8 s   5.2 kt rms -21.4 dB, työ 1.3 s: Thank you for your help.
+[55/137] normal   1.7 s   5.2 kt rms -21.4 dB, työ 1.2 s: Thanks for checking in.
+[56/137] normal   2.0 s   6.0 kt rms -21.4 dB, työ 1.4 s: Thanks for reporting this.
+[57/137] normal   1.7 s   5.0 kt rms -21.4 dB, työ 1.3 s: Thanks for your message.
+[58/137] normal   2.1 s   6.0 kt rms -21.4 dB, työ 1.4 s: Thanks so much for your help!
+[59/137] normal   0.9 s   2.7 kt rms -21.4 dB, työ 1.0 s: Thanks,
+[60/137] normal   1.5 s   4.4 kt rms -21.4 dB, työ 1.3 s: Thanks, Emily
+[61/137] normal   2.6 s   8.0 kt rms -21.4 dB, työ 1.7 s: That will help us find the cause faster.
+[62/137] normal   7.5 s  22.0 kt rms -21.4 dB, työ 4.6 s: The deadline has been moved to November first because the testing is taking longer than expected.
+[63/137] normal   6.6 s  19.4 kt rms -21.4 dB, työ 3.9 s: The earlier errors were all in the same part of the system, so I'm worried they could come back.
+[64/137] normal   1.5 s   4.5 kt rms -21.4 dB, työ 1.2 s: This is urgent.
+[65/137] normal   8.0 s  23.3 kt rms -21.4 dB, työ 4.8 s: To sum up, we agreed to move the go-live date to November first and to run one more round of testing.
+[66/137] normal   5.9 s  17.0 kt rms -21.4 dB, työ 3.3 s: Unfortunately, we're unable to extend the payment terms to 60 days.
+[67/137] normal   3.4 s   9.9 kt rms -21.4 dB, työ 2.0 s: We are growing quickly and cash flow is tight.
+[68/137] normal   2.4 s   7.2 kt rms -21.4 dB, työ 1.6 s: We have 40 invoices waiting.
+[69/137] normal   2.1 s   6.5 kt rms -21.4 dB, työ 1.5 s: We're already behind schedule.
+[70/137] normal   5.2 s  15.3 kt rms -21.4 dB, työ 3.0 s: We're looking into it right now, and I apologize for the inconvenience.
+[71/137] normal   2.6 s   7.6 kt rms -21.4 dB, työ 1.7 s: We're on track to go live on that date.
+[72/137] normal   1.2 s   3.5 kt rms -21.4 dB, työ 1.0 s: What do you think?
+[73/137] normal   5.2 s  15.4 kt rms -21.4 dB, työ 2.9 s: Would it be possible to send me the monthly report by noon on Thursday?
+[74/137] normal   1.7 s   5.3 kt rms -21.4 dB, työ 1.3 s: Would that be possible?
+[75/137] normal   5.6 s  16.4 kt rms -21.4 dB, työ 3.2 s: You were breaking up a few times during our call, and I didn't catch your colleague's name.
+[76/137] normal   6.3 s  18.5 kt rms -21.4 dB, työ 3.5 s: Your request was overlooked on our side, and I take full responsibility for that.
+[77/137] slow    11.8 s  33.7 kt rms -21.4 dB, työ 7.1 s: As I mentioned, I'm originally from Finland, and I work for a company that provides e-invoicing services.
+[78/137] slow     5.6 s  16.2 kt rms -21.4 dB, työ 3.2 s: As a compromise, we could offer 45 days.
+[79/137] slow     9.4 s  27.4 kt rms -22.1 dB, työ 5.6 s: As a workaround, you can send the most urgent invoices manually through the web portal.
+[80/137] slow     2.0 s   6.5 kt rms -21.4 dB, työ 1.6 s: Best regards,
+[81/137] slow     1.3 s   4.0 kt rms -21.4 dB, työ 1.2 s: Best,
+[82/137] slow     4.5 s  13.4 kt rms -21.4 dB, työ 2.7 s: Could you spell your colleague's email address for me?
+[83/137] slow     5.1 s  15.1 kt rms -21.4 dB, työ 3.0 s: Could you walk me through the main changes on a quick call?
+[84/137] slow     2.2 s   6.7 kt rms -21.4 dB, työ 1.6 s: Hello Ms. Bennett,
+[85/137] slow     1.7 s   5.3 kt rms -21.4 dB, työ 1.4 s: Hi Daniel,
+[86/137] slow     1.8 s   5.4 kt rms -21.4 dB, työ 1.5 s: Hi David,
+[87/137] slow     1.7 s   5.0 kt rms -21.4 dB, työ 1.4 s: Hi Emily,
+[88/137] slow     1.7 s   5.2 kt rms -21.4 dB, työ 1.4 s: Hi Grace,
+[89/137] slow     1.6 s   4.9 kt rms -21.4 dB, työ 1.4 s: Hi Henry,
+[90/137] slow     3.2 s   9.3 kt rms -21.4 dB, työ 2.0 s: Hi Mark, sorry about that.
+[91/137] slow     1.7 s   5.1 kt rms -21.4 dB, työ 1.4 s: Hi Michael,
+[92/137] slow     1.6 s   4.8 kt rms -21.4 dB, työ 1.4 s: Hi Priya,
+[93/137] slow     1.5 s   4.6 kt rms -21.4 dB, työ 1.4 s: Hi Sarah,
+[94/137] slow     1.8 s   5.5 kt rms -21.4 dB, työ 1.5 s: Hi everyone,
+[95/137] slow     4.9 s  14.4 kt rms -21.4 dB, työ 2.9 s: I enjoyed our conversation about automation.
+[96/137] slow     4.5 s  13.3 kt rms -21.4 dB, työ 2.7 s: I need the numbers for a meeting that afternoon.
+[97/137] slow     5.2 s  15.3 kt rms -21.4 dB, työ 3.1 s: I see your point, but I have a slightly different view.
+[98/137] slow    11.9 s  34.4 kt rms -21.4 dB, työ 7.3 s: I work as an application specialist in the invoicing team, and I'm responsible for our customer integrations.
+[99/137] slow     4.9 s  14.2 kt rms -21.4 dB, työ 3.0 s: I would be happy to set up a short call next week.
+[100/137] slow     7.6 s  22.2 kt rms -21.4 dB, työ 4.3 s: I'd appreciate it if you could find 15 minutes tomorrow or Wednesday.
+[101/137] slow     9.1 s  26.5 kt rms -21.4 dB, työ 5.4 s: I'd suggest we run a shorter test round on Friday and still go live on Monday.
+[102/137] slow     5.3 s  16.0 kt rms -21.4 dB, työ 3.1 s: I'll get back to you by Friday with a detailed schedule.
+[103/137] slow     9.6 s  27.5 kt rms -21.4 dB, työ 5.7 s: I'll need to check with my manager first, but I wanted to ask: is that acceptable to you?
+[104/137] slow     5.7 s  16.7 kt rms -21.4 dB, työ 3.3 s: I'll send you a calendar invite for Thursday at 2 p.m.
+[105/137] slow     7.7 s  22.3 kt rms -21.4 dB, työ 4.7 s: I'll take care of it today and send you a confirmation by the end of the day.
+[106/137] slow     3.6 s  11.3 kt rms -21.4 dB, työ 2.2 s: I'll update you as soon as I know more.
+[107/137] slow     5.3 s  15.6 kt rms -21.4 dB, työ 3.1 s: I'm happy to walk you through the process on a short call.
+[108/137] slow     6.1 s  18.0 kt rms -21.4 dB, työ 3.5 s: I'm interested in learning more about how your onboarding works.
+[109/137] slow     2.6 s   7.7 kt rms -21.4 dB, työ 1.8 s: I'm sorry for the delay.
+[110/137] slow    13.5 s  38.9 kt rms -21.4 dB, työ 9.0 s: I'm writing about invoice 10234 for €2,400, dated September fifteenth.
+[111/137] slow     8.4 s  24.1 kt rms -21.4 dB, työ 5.0 s: I'm writing to follow up on the e-invoicing setup guide I sent you last week.
+[112/137] slow     4.5 s  13.0 kt rms -21.4 dB, työ 2.6 s: If possible, could you reply by Friday?
+[113/137] slow     6.4 s  18.5 kt rms -21.4 dB, työ 3.7 s: If you have already paid it, could you send us the remittance advice?
+[114/137] slow     5.2 s  15.4 kt rms -21.4 dB, työ 3.1 s: It was nice meeting you at the conference yesterday.
+[115/137] slow     1.9 s   5.9 kt rms -21.4 dB, työ 1.5 s: Kind regards,
+[116/137] slow     9.3 s  26.6 kt rms -21.4 dB, työ 5.6 s: Laura will take ownership of the testing, and I'll update the project schedule by Wednesday.
+[117/137] slow     7.8 s  22.5 kt rms -21.4 dB, työ 4.8 s: Let's stay in touch, and feel free to reach out if you ever want to compare notes.
+[118/137] slow     6.4 s  18.4 kt rms -21.4 dB, työ 3.6 s: Our payment terms are net 30, so the payment is past due.
+[119/137] slow     8.4 s  24.0 kt rms -21.4 dB, työ 5.1 s: Please let me know if you have any questions or if you need help with the first steps.
+[120/137] slow     4.5 s  13.2 kt rms -21.4 dB, työ 2.7 s: Please reply to this email and let me know.
+[121/137] slow     2.4 s   7.1 kt rms -21.4 dB, työ 1.6 s: Thank you for your help.
+[122/137] slow     2.4 s   7.1 kt rms -21.4 dB, työ 1.7 s: Thanks for checking in.
+[123/137] slow     2.7 s   8.1 kt rms -21.4 dB, työ 1.9 s: Thanks for reporting this.
+[124/137] slow     2.4 s   7.4 kt rms -21.4 dB, työ 1.7 s: Thanks for your message.
+[125/137] slow     2.8 s   8.2 kt rms -21.4 dB, työ 1.9 s: Thanks so much for your help!
+[126/137] slow     1.3 s   3.8 kt rms -21.4 dB, työ 1.3 s: Thanks,
+[127/137] slow     3.8 s  11.3 kt rms -21.4 dB, työ 2.4 s: That will help us find the cause faster.
+[128/137] slow    10.2 s  29.4 kt rms -21.4 dB, työ 6.0 s: The deadline has been moved to November first because the testing is taking longer than expected.
+[129/137] slow     9.4 s  27.1 kt rms -21.4 dB, työ 5.7 s: The earlier errors were all in the same part of the system, so I'm worried they could come back.
+[130/137] slow    10.8 s  31.4 kt rms -21.4 dB, työ 6.4 s: To sum up, we agreed to move the go-live date to November first and to run one more round of testing.
+[131/137] slow     8.2 s  23.5 kt rms -21.4 dB, työ 5.0 s: Unfortunately, we're unable to extend the payment terms to 60 days.
+[132/137] slow     7.3 s  21.2 kt rms -21.4 dB, työ 4.2 s: We're looking into it right now, and I apologize for the inconvenience.
+[133/137] slow     3.8 s  11.0 kt rms -21.4 dB, työ 2.3 s: We're on track to go live on that date.
+[134/137] slow     1.8 s   5.3 kt rms -21.4 dB, työ 1.4 s: What do you think?
+[135/137] slow     7.4 s  22.2 kt rms -21.4 dB, työ 4.2 s: Would it be possible to send me the monthly report by noon on Thursday?
+[136/137] slow     8.2 s  23.7 kt rms -21.4 dB, työ 5.0 s: You were breaking up a few times during our call, and I didn't catch your colleague's name.
+[137/137] slow     8.9 s  25.6 kt rms -21.4 dB, työ 5.4 s: Your request was overlooked on our side, and I take full responsibility for that.
+Valmis 378 s: ääntä 605 s, nopeuskerroin 1.6× reaaliaika
+Manifesti: normaali 321, hidas 264, yhteensä 6.51 Mt, poistettu vanhoja 0, epäonnistui 0
+Tallennettu: 138 tiedostoa.
+{"status":"queued","url":"https://api.github.com/repositories/1444090522/pages/builds/latest"}
