@@ -18,6 +18,7 @@ import * as more from './views/more.js';
 import * as vocab from './views/vocab.js';
 import * as progress from './views/progress.js';
 import * as settingsView from './views/settings.js';
+import * as writeView from './views/write.js';
 
 const ROUTES = {
   today: { view: today, nav: 'today' },
@@ -26,6 +27,7 @@ const ROUTES = {
   lessons: { view: lessons, nav: 'lessons' },
   lesson: { view: lessons, nav: 'lessons', focus: true },
   speak: { view: speakView, nav: 'speak' },
+  write: { view: writeView, nav: 'today' },
   more: { view: more, nav: 'more' },
   vocab: { view: vocab, nav: 'more' },
   progress: { view: progress, nav: 'more' },

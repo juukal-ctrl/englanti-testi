@@ -37,6 +37,19 @@ async function overflow(page, label) {
   check(`ei vaakavieritystä: ${label}`, r.sw <= r.iw, `${r.sw} > ${r.iw}`);
 }
 
+/**
+ * Odottaa, että sivulla ajettu (myös asynkroninen) funktio palauttaa tosiarvon. Playwrightin waitForFunction ei odota
+ * async-funktion Promisea, vaan hyväksyy sen heti, joten tietokantaa lukevat ehdot odotetaan tällä.
+ */
+async function poll(page, fn, arg, { timeout = 5000, interval = 50 } = {}) {
+  const end = Date.now() + timeout;
+  for (;;) {
+    if (await page.evaluate(fn, arg)) return;
+    if (Date.now() > end) throw new Error(`poll: aikaraja ${timeout} ms ylittyi: ${String(fn).replace(/\s+/g, ' ').slice(0, 140)}`);
+    await page.waitForTimeout(interval);
+  }
+}
+
 async function go(page, base, hash) {
   await page.goto('about:blank'); // pakottaa täyden latauksen myös silloin, kun vain hash muuttuu
   await page.goto(base + (hash ? `#/${hash}` : ''), { waitUntil: 'load' });
@@ -183,6 +196,8 @@ async function playRunner(page, policy = {}) {
   throw new Error('tehtäväjono ei päättynyt');
 }
 
+const location_ok = (hash) => hash === '#/write';
+
 const dbState = (page) =>
   page.evaluate(async () => {
     const e = window.__englanti;
@@ -215,7 +230,7 @@ const dbState = (page) =>
     await overflow(page, 'Tänään');
     await page.click('.card.intro .btn');
     check('ensikäyttökortti sulkeutuu', (await page.locator('.card.intro').count()) === 0);
-    await page.waitForFunction(async () => (await window.__englanti.db.getKv('meta', {})).onboarded === true);
+    await poll(page, async () => (await window.__englanti.db.getKv('meta', {})).onboarded === true);
     await page.reload();
     await page.waitForSelector('#view h1');
     check('ensikäyttökortti pysyy suljettuna uudelleenlatauksen jälkeen', (await page.locator('.card.intro').count()) === 0);
@@ -442,6 +457,234 @@ const dbState = (page) =>
     await shot(page, '12-puhe-yhteenveto');
   });
 
+  /* ===== 6b. Kirjoita ===== */
+  await run('kirjoita', async () => {
+    const kv = (key, fallback) => page.evaluate(([k, f]) => window.__englanti.db.getKv(k, f), [key, fallback]);
+    const activitySum = async () => Object.values(await kv('activity', {})).reduce((a, b) => a + b, 0);
+    const taskData = (id) =>
+      page.evaluate(async (taskId) => {
+        const { WRITING_TASKS } = await import(new URL('data/writing.js', document.baseURI).href);
+        const { speechParts } = await import(new URL('js/writing.js', document.baseURI).href);
+        const t = WRITING_TASKS.find((x) => x.id === taskId);
+        return { model: t.model.join('\n\n'), modelParts: speechParts(t.model), incomingParts: t.incoming ? speechParts([t.incoming.text]) : [] };
+      }, id);
+    const waitDraft = (id, text) =>
+      poll(page, async ([taskId, want]) => ((await window.__englanti.db.getKv('writeDrafts', {}))[taskId] ?? {}).text === want, [id, text]);
+    const BAD = 'Hi David,\nI write to follow up the e-mail I sent you last week. Please inform me if you have any questions. Can you answer until friday? Thank you!\nBest regards,\nAlex';
+
+    // Pikalinkki Tänään-näkymästä
+    await navTo(page, 'today');
+    const tiles = await page.locator('.tiles a.tile').allTextContents();
+    check('Tänään-näkymässä on Kirjoita-pikalinkki (4 pikalinkkiä)', tiles.length === 4 && tiles.some((t) => /Kirjoita/.test(t)), JSON.stringify(tiles));
+    await page.click('.tiles a.tile[href="#/write"]');
+    await page.waitForSelector('nav.tiles a.tile');
+    check('Kirjoita-lista avautuu', (await page.textContent('#view h1')) === 'Kirjoita');
+    check('Tänään-välilehti pysyy valittuna Kirjoita-näkymässä', (await page.getAttribute('#nav a[data-nav="today"]', 'aria-current')) === 'page');
+
+    // Lista
+    check('listassa on 12 tehtävää', (await page.locator('nav.tiles a.tile').count()) === 12);
+    check('ehdotettu ensimmäinen tehtävä on seurantaviesti', (await page.getAttribute('.hero a.btn.primary', 'href')) === '#/write/w-followup');
+    check('lista kertoo "Tehty 0 / 12"', /Tehty 0 \/ 12/.test(await page.textContent('#view')));
+    await noGarbage(page, 'Kirjoita-lista');
+    await overflow(page, 'Kirjoita-lista');
+    await shot(page, '60-kirjoita-lista', { fullPage: true });
+    await navTo(page, 'write/w-olematon');
+    check('tuntematon tehtävä näyttää listan', (await page.locator('nav.tiles a.tile').count()) === 12);
+
+    // Tehtävänäkymä
+    await navTo(page, 'write');
+    await page.click('.hero a.btn.primary');
+    await page.waitForSelector('#w-text');
+    check('tehtävän otsikko on seurantaviesti', (await page.textContent('#view h1')) === 'Seurantaviesti asiakkaalle');
+    check('otsikko saa kohdistuksen reitin vaihtuessa', await page.evaluate(() => document.activeElement?.tagName === 'H1'));
+    const lists = page.locator('ul.todo');
+    check('sisältökohtia 3 ja harjoiteltavia ilmauksia 3', (await lists.nth(0).locator('li').count()) === 3 && (await lists.nth(1).locator('li').count()) === 3);
+    check('harjoiteltavat ilmaukset on kielimerkitty englanniksi', (await lists.nth(1).locator('li > [lang="en-US"]').count()) === 3);
+    const ta = await page.evaluate(() => {
+      const el = document.getElementById('w-text');
+      return { lang: el.lang, label: document.querySelector('label[for="w-text"]')?.textContent, cap: el.getAttribute('autocapitalize') ?? el.autocapitalize, max: el.getAttribute('maxlength') };
+    });
+    check('kirjoitusruudulla on nimike, kieli ja pituusraja', ta.lang === 'en-US' && /englanniksi/.test(ta.label ?? '') && ta.cap === 'sentences' && ta.max === '2500', JSON.stringify(ta));
+    check('sanalaskuri alkaa nollasta', /^0 sanaa/.test(await page.textContent('#w-count')));
+    await noGarbage(page, 'Kirjoita-tehtävä');
+    await overflow(page, 'Kirjoita-tehtävä');
+    await shot(page, '61-kirjoita-tehtava', { fullPage: true });
+
+    await page.click('#w-check');
+    check('tyhjää vastausta ei tarkisteta', (await page.locator('#w-feedback').count()) === 0);
+    check('tyhjästä vastauksesta tulee ilmoitus', /Kirjoita ensin vastaus/.test(await page.textContent('#toasts')));
+
+    // Virheellinen vastaus
+    await page.fill('#w-text', BAD);
+    check('sanalaskuri päivittyy (32 sanaa, liian lyhyt)', /^32 sanaa/.test(await page.textContent('#w-count')) && !(await page.getAttribute('#w-count', 'class')).includes('ok'), await page.textContent('#w-count'));
+    await page.click('#w-check');
+    await page.waitForSelector('#w-feedback');
+    const fb = await page.textContent('#w-feedback');
+    check('palaute: 1 virhe, 1 vinkki ja lyhyt viesti', /Tarkistettavaa: 1 virhe, 1 vinkki, viesti on lyhyt/.test(fb), fb.slice(0, 200));
+    check('virheen yhteenveto on punainen', (await page.locator('#w-feedback .verdict.bad').count()) === 1);
+    check('tekstissä on 2 korostusta ja listassa 2 huomiota', (await page.locator('#w-feedback mark.hl').count()) === 2 && (await page.locator('#w-feedback ol.issues li').count()) === 2);
+    const marked = await page.locator('#w-feedback mark.hl').evaluateAll((els) => els.map((e) => e.firstChild.textContent));
+    check('korostus rajautuu täsmälleen virheeseen (ei ylimääräisiä välilyöntejä)', JSON.stringify(marked) === JSON.stringify(['follow up the', 'friday']), JSON.stringify(marked));
+    check('korjausehdotukset näkyvät', /follow up on the/.test(fb) && /”Friday”/.test(fb));
+    check('Tervehdys ja päätös tarkistetaan sähköpostissa', /Tervehdys alussa/.test(fb) && /Päätös lopussa/.test(fb));
+    check('sisältökohdat 3 / 3 ja ilmaukset 0 / 3', /Sisältökohdat\s*3 \/ 3/.test(fb) && /Harjoiteltavat ilmaukset\s*0 \/ 3/.test(fb), fb.slice(0, 300));
+    check('palaute saa kohdistuksen', await page.evaluate(() => document.activeElement?.id === 'w-feedback'));
+    await page.waitForFunction(() => /Tarkistettavaa/.test(document.getElementById('live')?.textContent ?? ''), null, { timeout: 2000 });
+    check('yhteenveto kuulutetaan ruudunlukijalle', true);
+    check('sääntötarkistuksen rajoitus kerrotaan', /eikä löydä esimerkiksi puuttuvia artikkeleita/.test(fb));
+    await noGarbage(page, 'Kirjoita-palaute');
+    await overflow(page, 'Kirjoita-palaute');
+    await shot(page, '62-kirjoita-palaute', { fullPage: true });
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await shot(page, '63-kirjoita-palaute-tumma', { fullPage: true });
+    await page.emulateMedia({ colorScheme: 'light' });
+
+    // Mallivastaus ja ääni
+    check('mallivastaus on aluksi suljettu', (await page.locator('#w-feedback details.model[open]').count()) === 0);
+    await page.click('#w-feedback details.model > summary');
+    const modelText = await page.textContent('#w-feedback details.model .quote');
+    const data = await taskData('w-followup');
+    check('mallivastaus näkyy kokonaisena', modelText === data.model && /Hi David,/.test(modelText), modelText.slice(0, 80));
+    await page.evaluate(() => {
+      window.__spoken.length = 0;
+      window.__rates.length = 0;
+    });
+    await page.click('#w-feedback details.model .say-row .btn.slow');
+    await page.waitForFunction(() => window.__spoken.length >= 1, null, { timeout: 5000 });
+    const slowRate = await page.evaluate(() => window.__rates[0]);
+    check('"Hitaasti" lukee mallin hitaammin kuin normaalisti', slowRate < 0.7, String(slowRate));
+    await page.click('#w-feedback details.model .say-row .speak'); // keskeyttää hitaan toiston
+    await page.evaluate(() => {
+      window.__spoken.length = 0;
+    });
+    await page.click('#w-feedback details.model .say-row .speak');
+    await page.waitForFunction((n) => window.__spoken.length >= n, data.modelParts.length, { timeout: 12000 });
+    const spoken = await page.evaluate(() => window.__spoken.slice());
+    check('mallivastaus luetaan lauseittain ilman allekirjoitusta', JSON.stringify(spoken.slice(0, data.modelParts.length)) === JSON.stringify(data.modelParts) && !spoken.includes('Alex'), JSON.stringify(spoken));
+
+    // Teksti muuttuu palautteen jälkeen
+    await page.fill('#w-text', BAD + ' Thanks again.');
+    check('muokattu teksti merkitsee palautteen vanhentuneeksi', (await page.locator('#w-feedback .stale').count()) === 1);
+    await page.fill('#w-text', BAD);
+    check('muutoksen peruminen poistaa vanhentumisilmoituksen', (await page.locator('#w-feedback .stale').count()) === 0);
+    await page.click('#w-revise');
+    check('"Muokkaa ja tarkista uudelleen" siirtää kohdistuksen tekstikenttään', await page.evaluate(() => document.activeElement?.id === 'w-text'));
+
+    // Virheetön vastaus (malli läpäisee oman tarkistuksensa)
+    await page.fill('#w-text', data.model);
+    await page.click('#w-check');
+    await page.waitForFunction(() => /Hyvä!/.test(document.querySelector('#w-feedback .verdict')?.textContent ?? ''), null, { timeout: 3000 });
+    const fb2 = await page.textContent('#w-feedback');
+    check('malli saa vihreän "Hyvä!"-palautteen', (await page.locator('#w-feedback .verdict.ok').count()) === 1 && /Sisältökohdat\s*3 \/ 3/.test(fb2) && /Harjoiteltavat ilmaukset\s*3 \/ 3/.test(fb2) && (await page.locator('#w-feedback mark.hl').count()) === 0, fb2.slice(0, 300));
+    check('virheettömässä palautteessa ei vanhentumisilmoitusta', (await page.locator('#w-feedback .stale').count()) === 0);
+
+    const log = await kv('writeLog', []);
+    check('molemmat yritykset kirjautuvat lokiin', log.length === 2 && log[0].errors === 1 && log[0].tips === 1 && log[0].clean === false && log[1].clean === true && log.every((e) => e.id === 'w-followup' && e.ai === false), JSON.stringify(log));
+    await waitDraft('w-followup', data.model);
+    check('luonnos tallentuu', true);
+
+    // Lista näyttää tilan, luonnos palautuu
+    await navTo(page, 'write');
+    const firstTile = await page.locator('nav.tiles a.tile').first().textContent();
+    check('virheetön yritys merkitsee tehtävän tehdyksi', /Tehty/.test(firstTile) && /Tehty 1 \/ 12/.test(await page.textContent('#view')), firstTile);
+    check('ehdotus siirtyy seuraavaan tehtävään', (await page.getAttribute('.hero a.btn.primary', 'href')) === '#/write/w-request');
+    await navTo(page, 'write/w-followup');
+    await page.waitForSelector('#w-text');
+    check('tallennettu luonnos palautuu', (await page.inputValue('#w-text')) === data.model);
+
+    // Valmis
+    await page.click('#w-check');
+    await page.waitForSelector('#w-done');
+    check('"Seuraava tehtävä" -linkki osoittaa seuraavaan tehtävään', (await page.getAttribute('#w-feedback a.btn.link', 'href')) === '#/write/w-request');
+    await page.click('#w-done');
+    await page.waitForSelector('nav.tiles a.tile');
+    check('"Valmis" palaa listaan', (await page.textContent('#view h1')) === 'Kirjoita' && location_ok(await page.evaluate(() => location.hash)));
+    check('"Valmis" näyttää ilmoituksen', /merkitty tehdyksi/.test(await page.textContent('#toasts')));
+    await poll(page, async () => !(await window.__englanti.db.getKv('writeDrafts', {}))['w-followup']);
+    const log2 = await kv('writeLog', []);
+    check('"Valmis" kirjautuu lokiin ja poistaa luonnoksen', log2.length === 4 && log2[3].done === true && log2[3].id === 'w-followup', JSON.stringify(log2.map((e) => ({ id: e.id, done: e.done, clean: e.clean }))));
+
+    // Chat-tehtävä saadulla viestillä
+    await navTo(page, 'write/w-disagree');
+    await page.waitForSelector('#w-text');
+    const chat = await taskData('w-disagree');
+    check('saatu viesti näkyy omana laatikkonaan', (await page.locator('.incoming .quote[lang="en-US"]').count()) === 1 && chat.incomingParts.length >= 2);
+    await page.evaluate(() => {
+      window.__spoken.length = 0;
+    });
+    await page.click('.incoming .speak');
+    await page.waitForFunction(() => window.__spoken.length >= 1, null, { timeout: 5000 });
+    check('saatu viesti luetaan lause kerrallaan', (await page.evaluate(() => window.__spoken[0])) === chat.incomingParts[0], await page.evaluate(() => window.__spoken[0]));
+    await page.click('.incoming .speak'); // keskeyttää toiston
+    await page.fill('#w-text', "I see your point, but I'd rather keep the original deadline. Could we discuss it tomorrow?");
+    await page.click('#w-check');
+    await page.waitForSelector('#w-feedback');
+    const fbChat = await page.textContent('#w-feedback');
+    check('pikaviestissä ei vaadita tervehdystä eikä päätöstä', !/Tervehdys alussa|Päätös lopussa/.test(fbChat), fbChat.slice(0, 300));
+
+    // Mallivastaus ilman tarkistusta
+    await navTo(page, 'write/w-request');
+    await page.waitForSelector('#w-text');
+    const logBefore = (await kv('writeLog', [])).length;
+    await page.click('#w-model');
+    await page.waitForSelector('#w-feedback details.model[open]');
+    check('mallivastaus avautuu heti ja korttia kutsutaan mallivastaukseksi', (await page.textContent('#w-feedback h2')) === 'Mallivastaus');
+    await page.click('#w-write');
+    check('"Kirjoita oma vastaukseni" siirtää kohdistuksen tekstikenttään', await page.evaluate(() => document.activeElement?.id === 'w-text'));
+    check('pelkkä mallin katsominen ei kirjaudu yritykseksi', (await kv('writeLog', [])).length === logBefore);
+
+    // Tyhjennys vahvistuksella
+    await page.fill('#w-text', 'Hi Sarah, could you send the report?');
+    await page.click('#w-clear');
+    await page.waitForSelector('dialog.dialog[open]');
+    await page.click('dialog.dialog .btn:not(.danger)');
+    check('tyhjennyksen peruminen säilyttää tekstin', (await page.inputValue('#w-text')).startsWith('Hi Sarah'));
+    await page.click('#w-clear');
+    await page.waitForSelector('dialog.dialog[open]');
+    await page.click('dialog.dialog .btn.danger');
+    await page.waitForFunction(() => document.getElementById('w-text').value === '', null, { timeout: 2000 });
+    check('tyhjennys poistaa tekstin ja nollaa laskurin', /^0 sanaa/.test(await page.textContent('#w-count')));
+
+    // Luonnos säilyy uudelleenlatauksen yli
+    await page.fill('#w-text', 'Hi Sarah, could you send me the monthly report by noon on Thursday?');
+    await waitDraft('w-request', 'Hi Sarah, could you send me the monthly report by noon on Thursday?');
+    await go(page, base, 'write/w-request');
+    await page.waitForSelector('#w-text');
+    check('luonnos säilyy sivun uudelleenlatauksen jälkeen', (await page.inputValue('#w-text')).startsWith('Hi Sarah, could you send me the monthly report'));
+    check('listassa näkyy "Luonnos tallessa"', await (async () => {
+      await navTo(page, 'write');
+      return /Luonnos tallessa/.test(await page.textContent('nav.tiles'));
+    })());
+
+    // Ajanmittaus: vain aktiivinen aika, yksittäinen tauko katkaistaan 45 sekuntiin
+    await page.evaluate(() => {
+      window.__fakeT = 1000;
+      window.__englanti.now = () => window.__fakeT;
+    });
+    await navTo(page, 'write/w-reminder');
+    await page.waitForSelector('#w-text');
+    const act0 = await activitySum();
+    await page.evaluate(() => {
+      window.__fakeT += 20000;
+    });
+    await page.fill('#w-text', 'Hi Anna, this is a short note about the invoice.');
+    await page.evaluate(() => {
+      window.__fakeT += 120000; // pitkä tauko: lasketaan enintään 45 s
+    });
+    await page.click('#w-check');
+    await page.waitForSelector('#w-feedback');
+    await navTo(page, 'write');
+    await poll(page, async (before) => Object.values(await window.__englanti.db.getKv('activity', {})).reduce((a, b) => a + b, 0) > before, act0);
+    const act1 = await activitySum();
+    check('harjoitteluaika: 20 s + katkaistu tauko 45 s = 65 s', act1 - act0 === 65000, String(act1 - act0));
+    await page.evaluate(() => {
+      window.__englanti.now = () => performance.now();
+    });
+    await noGarbage(page, 'Kirjoita-lista tehtävien jälkeen');
+    await overflow(page, 'Kirjoita-lista tehtävien jälkeen');
+    await shot(page, '64-kirjoita-lista-tehtyja', { fullPage: true });
+  });
+
   /* ===== 7. Edistyminen ja Lisää ===== */
   await run('edistyminen', async () => {
     await navTo(page, 'more');
@@ -468,7 +711,7 @@ const dbState = (page) =>
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.3\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.4\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');
@@ -983,6 +1226,54 @@ const dbState = (page) =>
       check('sessiossa soi leikkeitä', st.played.length >= 10, String(st.played.length));
       check('sessiossa ei puuttunut yhtään leikettä (kaikki luettavat tekstit on esiäänitetty)', st.missing.length === 0, st.missing.join(' | '));
       check('sessiossa ei tarvittu laitteen ääntä eikä leikkeiden haku epäonnistunut', (await nSpoken(kp)) === 0 && st.failed === 0, `spoken ${await nSpoken(kp)}, failed ${st.failed}`);
+    });
+
+    await runOn(kp, 'kokoro: Kirjoita – saatu viesti ja mallivastaus leikkeinä', async () => {
+      // Kirjoita-tehtävien tekstit kuuluvat esiäänitettyihin leikkeisiin (tools/tts/texts.mjs): koko ketju eli
+      // lauseiksi pilkkominen, avaimet, manifesti ja toisto pitää toimia ilman laitteen ääntä.
+      const data = await kp.evaluate(async () => {
+        const { WRITING_TASKS } = await import(new URL('data/writing.js', document.baseURI).href);
+        const { speechParts } = await import(new URL('js/writing.js', document.baseURI).href);
+        const { speakable } = await import(new URL('js/speakable.js', document.baseURI).href);
+        const t = WRITING_TASKS.find((x) => x.id === 'w-disagree');
+        return { incoming: speechParts([t.incoming.text]).map(speakable), model: speechParts(t.model).map(speakable) };
+      });
+      const TW = realAudio ? 120000 : 30000;
+      // Odottaa, että `n` uutta leikettä on alkanut ja koko jono on soinut loppuun; palauttaa uudet leikkeet.
+      const playedSince = async (before, n) => {
+        await kp.waitForFunction(([b, k]) => window.__englanti.clipStats().played.length >= b + k, [before, n], { timeout: TW });
+        await kp.waitForFunction(() => !document.querySelector('#view .speak.playing, #view .slow.playing'), null, { timeout: TW });
+        return (await stats(kp)).played.slice(before, before + n);
+      };
+      check('Kirjoita-tekstit on pilkottu lauseiksi (viesti ja malli)', data.incoming.length >= 2 && data.model.length >= 3, JSON.stringify([data.incoming.length, data.model.length]));
+      check('jokaiselle lauseelle on normaali- ja hidas leike manifestissa', data.model.every((t) => manifest.normal[t] && manifest.slow[t]) && data.incoming.every((t) => manifest.normal[t]), data.model.filter((t) => !manifest.normal[t] || !manifest.slow[t]).join(' | '));
+
+      await go(kp, base2, 'write/w-disagree');
+      await kp.waitForSelector('#w-text');
+      await kp.evaluate(() => (window.__spoken.length = 0));
+      let before = (await stats(kp)).played.length;
+      await kp.click('.incoming .icon-btn.speak');
+      let got = await playedSince(before, data.incoming.length);
+      check('saatu viesti soi lauseittain Kokoro-leikkeinä', JSON.stringify(got) === JSON.stringify(data.incoming.map((t) => manifest.normal[t])), JSON.stringify(got));
+
+      await kp.click('#w-model');
+      await kp.waitForSelector('#w-feedback details.model[open]');
+      before = (await stats(kp)).played.length;
+      await kp.click('#w-feedback details.model .say-row .speak');
+      got = await playedSince(before, data.model.length);
+      check('mallivastaus soi lauseittain Kokoro-leikkeinä', JSON.stringify(got) === JSON.stringify(data.model.map((t) => manifest.normal[t])), JSON.stringify(got));
+
+      before = (await stats(kp)).played.length;
+      await kp.click('#w-feedback details.model .say-row .btn.slow');
+      got = await playedSince(before, data.model.length);
+      check(
+        '"Hitaasti" soittaa mallivastauksen erikseen generoiduilla hitailla leikkeillä',
+        JSON.stringify(got) === JSON.stringify(data.model.map((t) => manifest.slow[t])) && got.every((id, i) => id !== manifest.normal[data.model[i]]),
+        JSON.stringify(got),
+      );
+
+      const st = await stats(kp);
+      check('Kirjoita-teksteistä mikään ei puuttunut leikkeistä, haut onnistuivat ja laitteen ääntä ei tarvittu', st.missing.length === 0 && st.failed === 0 && (await nSpoken(kp)) === 0, `puuttuu: ${st.missing.join(' | ')}; epäonnistui ${st.failed}; laitteen ääni ${await nSpoken(kp)}`);
     });
 
     await runOn(kp, 'kokoro: lataus offline-käyttöön', async () => {

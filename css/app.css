@@ -739,6 +739,9 @@ dialog.dialog::backdrop {
 .verdict.bad {
   color: var(--bad);
 }
+.verdict.warn {
+  color: var(--warn);
+}
 .runner-box .actions {
   position: sticky;
   bottom: 0;
@@ -896,6 +899,186 @@ dialog.dialog::backdrop {
   padding: 0.75rem;
   border-radius: 0.6rem;
   font-size: 0.8rem;
+}
+
+/* ---------- Kirjoita ---------- */
+
+.card h3 {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  margin: 1.1rem 0 0.4rem;
+}
+.btn.link.back {
+  padding-left: 0;
+  justify-content: flex-start;
+}
+.tile .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+.chip.bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+ul.todo li::before {
+  content: '•';
+  color: var(--accent);
+  margin-right: 0.6rem;
+}
+textarea.text-input.area {
+  display: block;
+  min-height: 11rem;
+  padding: 0.7rem 0.85rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+.counter {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.counter.muted {
+  color: var(--muted);
+}
+.counter.ok {
+  color: var(--good);
+}
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.say-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: none;
+}
+.quote,
+.written {
+  white-space: pre-wrap;
+  background: var(--surface-2);
+  border-radius: 0.9rem;
+  padding: 0.7rem 0.95rem;
+  margin: 0.4rem 0 0.8rem;
+  line-height: 1.6;
+}
+.written {
+  line-height: 1.9;
+}
+.incoming .eyebrow {
+  margin: 0.25rem 0;
+}
+.feedback {
+  border-color: var(--accent);
+  scroll-margin-top: 0.75rem;
+}
+.feedback .facts {
+  margin: 0.8rem 0;
+}
+.banner.stale {
+  margin: 0 0 0.75rem;
+}
+.checklist {
+  list-style: none;
+  margin: 0.4rem 0 0.8rem;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.checklist li {
+  display: grid;
+  grid-template-columns: 1.4rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+}
+.checklist .mark {
+  font-weight: 800;
+  text-align: center;
+}
+.checklist li.yes .mark {
+  color: var(--good);
+}
+.checklist li.no .mark {
+  color: var(--warn);
+}
+.block {
+  display: block;
+}
+mark.hl {
+  color: var(--ink);
+  border-radius: 0.3rem;
+  padding: 0 0.15rem;
+}
+mark.hl.error {
+  background: var(--bad-soft);
+  text-decoration: underline wavy var(--bad);
+  text-underline-offset: 0.2em;
+}
+mark.hl.tip {
+  background: var(--warn-soft);
+  text-decoration: underline dotted var(--warn);
+  text-underline-offset: 0.2em;
+}
+mark.hl sup {
+  font-weight: 800;
+  margin-left: 0.1rem;
+}
+ol.issues {
+  list-style: none;
+  margin: 0.4rem 0 0.8rem;
+  padding: 0;
+  display: grid;
+  gap: 0.6rem;
+}
+ol.issues li {
+  border-left: 4px solid var(--line);
+  background: var(--surface);
+  padding: 0.35rem 0.2rem 0.35rem 0.8rem;
+}
+ol.issues li.error {
+  border-left-color: var(--bad);
+}
+ol.issues li.tip {
+  border-left-color: var(--warn);
+}
+ol.issues p {
+  margin: 0.15rem 0;
+}
+.quote-line .fix {
+  color: var(--good);
+  font-weight: 700;
+}
+details.model {
+  margin: 0.9rem 0;
+  border: 1px solid var(--line);
+  border-radius: 0.9rem;
+  padding: 0.2rem 0.9rem 0.6rem;
+  background: var(--surface);
+}
+details.model > summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+}
+details.model > summary::after {
+  content: '+';
+  content: '+' / '';
+  margin-left: auto;
+  font-size: 1.4rem;
+  color: var(--accent);
+}
+details.model[open] > summary::after {
+  content: '–';
+  content: '–' / '';
+}
+.ai-slot:empty {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

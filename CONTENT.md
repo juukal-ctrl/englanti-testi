@@ -72,3 +72,45 @@ Sisältö
 
 Uusia ilmauksia voi lisätä aiheen loppuun. Älä poista tai uudelleennumeroi vanhoja: poistetun ilmauksen kortti jää
 tietokantaan, mutta sitä ei enää kerrata.
+
+## Kirjoitustehtävät
+
+Tehtävät ovat tiedostossa [`data/writing.js`](data/writing.js) (`WRITING_TASKS`). Jokaisella aiheella on tällä hetkellä yksi
+tehtävä (12 kpl). Tehtävien nimet ja yritykset ovat keksittyjä, mallivastauksen allekirjoitus on "Alex".
+Äidinkielisen puhujan tarkistus puuttuu, kuten ilmauksistakin.
+
+| Kenttä | Merkitys |
+| --- | --- |
+| `id` | Pysyvä tunniste `w-…` (edistyminen on sidottu siihen; ei saa muuttaa). |
+| `unit` | Aihe (`data/units.js`), johon tehtävä liittyy. |
+| `title`, `scenario`, `tip` | Suomenkielinen nimi, tilanne (kenelle, mistä ja mitä viestissä pitää olla) ja yksi vinkki palautteen yhteyteen. |
+| `format` | `email` (tervehdys ja päätös vaaditaan), `message` (tervehdys) tai `chat` (ei vaatimuksia). |
+| `tone` | `polite` kytkee kohteliaisuussäännöt (käskylauseet, *I want*, *you must*) päälle. |
+| `incoming` | Valinnainen saatu viesti `{ from, text }`, johon vastataan. Sen lauseet voi kuunnella. |
+| `points` | 2–5 sisältökohtaa `{ fi, any: [säännöllisiä lausekkeita] }`; kohta täyttyy, kun jokin lauseke osuu (isoja ja pieniä kirjaimia ei erotella). |
+| `use` | 2–4 harjoiteltavaa ilmausta oppitunneilta: ilmauksen `id` tai `{ id, re }`, kun ilmaus vaihtelee eikä sitä voi tunnistaa kiinteästä osasta. |
+| `words` | Sopiva sanamäärä `[min, max]`. |
+| `model` | Mallivastaus kappaleittain (amerikanenglantia). Viimeinen kappale on tervehdys ja allekirjoitus, esim. `'Best regards,\nAlex'`. |
+
+Testit (`node --test tests/writing.test.mjs`) vaativat, että jokainen mallivastaus läpäisee omat sääntönsä: sopiva pituus,
+kaikki sisältökohdat, kaikki harjoiteltavat ilmaukset, tervehdys ja päätös sekä nolla sääntöhuomautusta. Lisäksi ne varmistavat,
+ettei tehtävissä ole ajatusviivoja ja että viittaukset aiheisiin ja ilmauksiin ovat olemassa.
+
+Laatulista uudelle tehtävälle
+- [ ] Tilanne on realistinen työtilanne ja pyyntö on tehtävissä 40–110 sanalla.
+- [ ] Sisältökohdat kuvaavat asioita, jotka viestissä on pakko olla; `any`-lausekkeet hyväksyvät useita luontevia muotoja.
+- [ ] Harjoiteltavat ilmaukset sopivat tilanteeseen luontevasti (ei väkisin).
+- [ ] Mallivastaus kuulostaa siltä, mitä amerikkalainen työkaveri kirjoittaisi, ja sen lauseet ovat ääneen luettavia.
+- [ ] Ei oikeita henkilö- tai yritysnimiä.
+
+### Sääntötarkistuksen säännöt
+
+Säännöt ovat tiedostossa [`js/writing-rules.js`](js/writing-rules.js). Jokaisella säännöllä on `id`, `cat` (luokka), `sev`
+(`error` = korjaa, `tip` = vinkki), säännöllinen lauseke `re`, suomenkielinen selitys `fi` ja valinnainen korjausehdotus `fix`.
+Käsin kirjoitetuille säännöille pitää lisätä testitapaus (`tests/writing.test.mjs`, taulukko `CASES`: väärät esimerkit, oikeat
+esimerkit ja odotettu korjaus); testi epäonnistuu, jos sääntö puuttuu taulukosta tai osuu oikeaan englantiin. Brittiläisen ja
+amerikkalaisen oikeinkirjoituksen taulukko (`UK_US`) ja yleisten kirjoitusvirheiden taulukko (`MISSPELLINGS`) ovat samassa tiedostossa.
+
+Periaate: **mieluummin huomauttamatta kuin väärä hälytys.** Säännön pitää osua vain silloin, kun virhe on varma tai kun
+vinkki on perusteltu (`tip`). Kaikki sovelluksen esimerkkilauseet, aukkolauseet ja saadut viestit ajetaan sääntöjen läpi, eikä
+yksikään saa huomautusta.

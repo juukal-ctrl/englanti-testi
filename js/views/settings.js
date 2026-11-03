@@ -5,6 +5,7 @@ import { loadVoices, rankVoices, asrSupported, ttsSupported } from '../speech.js
 import { clipSummary, prefetchAll } from '../clips.js';
 import { VOICE_TEST_TEXT } from '../speakable.js';
 import { DEFAULT_SETTINGS } from '../settings.js';
+import { WRITING_TASKS } from '../../data/writing.js';
 
 const MAX_IMPORT_BYTES = 30 * 1024 * 1024;
 
@@ -230,7 +231,7 @@ export async function mount(root, ctx) {
       'section',
       { class: 'card' },
       h('h2', {}, 'Tietoja'),
-      h('p', { class: 'help', id: 'about' }, `Versio ${ctx.version}${build ? ` (${build})` : ''}. Sisältö: ${ctx.catalog.items.length} ilmausta, ${ctx.catalog.units.length} aihetta.`),
+      h('p', { class: 'help', id: 'about' }, `Versio ${ctx.version}${build ? ` (${build})` : ''}. Sisältö: ${ctx.catalog.items.length} ilmausta, ${ctx.catalog.units.length} aihetta, ${WRITING_TASKS.length} kirjoitustehtävää.`),
     ),
     h(
       'section',

@@ -87,6 +87,7 @@ export async function mount(root, ctx) {
   quick.append(
     tile('#/review', 'Pelkkä kertaus', due ? `${due} erääntynyttä` : 'ei erääntyneitä'),
     tile('#/speak', 'Puhu', 'kuuntele ja sano perässä'),
+    tile('#/write', 'Kirjoita', 'lyhyt työviesti ja palaute'),
     tile('#/lessons', 'Valitse aihe', `${ctx.catalog.units.length} aihetta`),
   );
   root.append(quick);

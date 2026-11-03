@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // Luettelee kaikki tekstit, jotka sovellus voi lukea ääneen ja jotka esiäänitetään (Kokoro).
 //   node tools/tts/texts.mjs     tulostaa JSON-luettelon { normal: [...], slow: [...] }
-// "normal" = kaikki luettavat tekstit. "slow" = tekstit, joilla on "Hitaasti"-painike (esimerkkilause ja malli).
+// "normal" = kaikki luettavat tekstit. "slow" = tekstit, joilla on "Hitaasti"-painike (esimerkkilause, malli ja kirjoitustehtävän mallivastaus).
 // Tekstit ovat samassa muodossa kuin speakable() palauttaa ne, koska sovellus hakee leikkeet sillä avaimella.
 
 import { fileURLToPath } from 'node:url';
 import { CATALOG, BLANK } from '../../js/content.js';
 import { speakable, VOICE_TEST_TEXT } from '../../js/speakable.js';
+import { WRITING_TASKS } from '../../data/writing.js';
+import { speechParts } from '../../js/writing.js';
 
-export function collectTexts(catalog = CATALOG) {
+export function collectTexts(catalog = CATALOG, tasks = WRITING_TASKS) {
   const normal = new Set();
   const slow = new Set();
   const add = (set, text) => {
@@ -23,6 +25,14 @@ export function collectTexts(catalog = CATALOG) {
     if (it.cloze) add(normal, it.cloze.text.replace(BLANK, () => it.cloze.answer)); // täytetty aukkolause
     add(slow, it.ex);
     add(slow, it.say);
+  }
+  // Kirjoitustehtävät: mallivastauksen lauseet (myös hitaasti) ja saadun viestin lauseet. Jako on sama kuin sovelluksessa.
+  for (const task of tasks) {
+    for (const part of speechParts(task.model)) {
+      add(normal, part);
+      add(slow, part);
+    }
+    if (task.incoming) for (const part of speechParts([task.incoming.text])) add(normal, part);
   }
   const sorted = (set) => [...set].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
   return { normal: sorted(normal), slow: sorted(slow) };

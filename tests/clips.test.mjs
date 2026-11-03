@@ -9,6 +9,8 @@ import { parseManifest, findClip, playbackRateFor, pruneAudioCache, AUDIO_CACHE,
 import { collectTexts } from '../tools/tts/texts.mjs';
 import { speakable, VOICE_TEST_TEXT } from '../js/speakable.js';
 import { CATALOG, BLANK } from '../js/content.js';
+import { WRITING_TASKS } from '../data/writing.js';
+import { speechParts } from '../js/writing.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const ID_A = 'a1b2c3d4e5f6';
@@ -97,6 +99,27 @@ test('collectTexts: kaikki luettavat tekstit ovat mukana, vakaassa muodossa', ()
     assert.ok(slow.includes(speakable(it.say)), `${it.id}: hidas malli puuttuu`);
   }
   for (const t of slow) assert.ok(set.has(t), `hidas teksti ei ole normaalissa luettelossa: ${t}`);
+});
+
+test('collectTexts: kirjoitustehtävien mallivastaukset ja saadut viestit ovat mukana lauseittain', () => {
+  const { normal, slow } = collectTexts();
+  const set = new Set(normal);
+  const slowSet = new Set(slow);
+  let checked = 0;
+  for (const task of WRITING_TASKS) {
+    for (const part of speechParts(task.model)) {
+      assert.ok(set.has(speakable(part)), `${task.id}: mallin lause puuttuu: ${part}`);
+      assert.ok(slowSet.has(speakable(part)), `${task.id}: mallin lause puuttuu hitaista: ${part}`);
+      checked++;
+    }
+    if (task.incoming) {
+      for (const part of speechParts([task.incoming.text])) {
+        assert.ok(set.has(speakable(part)), `${task.id}: saadun viestin lause puuttuu: ${part}`);
+        checked++;
+      }
+    }
+  }
+  assert.ok(checked > 60, `lauseita vain ${checked}`);
 });
 
 test('respell.json: säännöt ovat kelvollisia ja osuvat johonkin luettavaan tekstiin', () => {

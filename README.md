@@ -14,11 +14,12 @@ Sovellus, sisältö ja koodi on tehty Clauden avulla.
 - **Kertaus FSRS-6-ajastuksella:** ilmaukset palaavat juuri ennen unohtamista. Tavoitesäilyvyys 90 % (säädettävä).
 - **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (shadowing).
 - **Puhe:** esiäänitetty Kokoro-ääni (luonnollinen painotus, myös hitaasti; toimii ilman verkkoa, kun äänet on ladattu laitteelle), laitteen oma puhesynteesi varana sekä puheentunnistus (sano). Tunnistus on apuväline, ei arvosana. Numerot hyväksytään kaikissa muodoissa (`3`, `third`, `three`). Katso [Äänet](#äänet-kokoro).
+- **Kirjoita:** lyhyet työviestit englanniksi (sähköposti, pikaviesti). Palaute tulee heti laitteella, ilman verkkoa: sääntötarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus, suomenkieliset sanat), näyttää puuttuvat asiat ja harjoiteltavat ilmaukset sekä antaa kuunneltavan mallivastauksen. Katso [Kirjoita](#kirjoita).
 - **Sanasto, edistyminen, asetukset** sekä JSON-varmuuskopion vienti ja tuonti.
 - **Offline:** koko sovellus välimuistitetaan (service worker) ja toimii ilman verkkoa.
 - **Laitetesti:** vaiheen 0 mittaussivu on tallessa osoitteessa `/laitetesti/`.
 
-Sisältö on tällä hetkellä 12 aihetta ja 126 ilmausta. Katso [CONTENT.md](CONTENT.md).
+Sisältö on tällä hetkellä 12 aihetta, 126 ilmausta ja 12 kirjoitustehtävää. Katso [CONTENT.md](CONTENT.md).
 
 ## Päivän sessio
 
@@ -36,6 +37,30 @@ suunnitelman loppuun; "15 min lisää" jatkaa uusilla ilmauksilla. Tänään-nä
 (yksittäinen tehtävä lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
 
 Ensimmäisinä kertoina ilmaus ei voi saada arvosanaa "Helppo", koska juuri nähty ei ole varmasti pitkäkestoista muistia.
+
+## Kirjoita
+
+Kirjoitustehtävä on lyhyt työtilanne ("kirjoita seurantaviesti asiakkaalle"), joka sisältää tilanteen, tarvittaessa saadun
+englanninkielisen viestin, 2–5 sisältökohtaa ja 2–4 harjoiteltavaa ilmausta oppitunneilta. Tehtävät ovat tiedostossa
+[`data/writing.js`](data/writing.js).
+
+**Palaute (sääntötarkistus, `js/writing.js` ja `js/writing-rules.js`):** puhdas JavaScript-moduuli, ei verkkoa eikä tekoälyä.
+Se tarkistaa sanamäärän, tervehdyksen ja päätöksen (viestityypin mukaan), tunnistaa sisältökohdat ja harjoiteltavat ilmaukset ja
+huomauttaa tyypillisistä virheistä suomalaisen oppijan kannalta: prepositiot (*discuss about*, *depend from*), aikamuodot
+(*since two years*), päivämäärät, kellonajat ja luvut suomalaisessa muodossa (`3.11.2026`, `14.30`, `1 000,50`), brittiläinen
+oikeinkirjoitus, yleiset kirjoitusvirheet, kohteliaisuus (*I want*, käskylauseet, vain kohteliaissa tehtävissä), suomenkieliset
+sanat sekä isot kirjaimet. Virheet korostetaan käyttäjän omassa tekstissä ja jokaisesta on suomenkielinen selitys ja korjausehdotus.
+
+**Rajat (kerrotaan myös käyttöliittymässä):** tarkistus ei löydä kaikkea (esimerkiksi puuttuvia artikkeleita) eikä arvioi tekstin
+sujuvuutta kokonaisuutena. Säännöt on valittu niin, että oikea englanti ei saa huomautusta: yksikkötestit ajavat kaikki
+sovelluksen esimerkkilauseet ja mallivastaukset sääntöjen läpi ja vaativat nollan huomautusta.
+
+**Tallennus:** keskeneräinen teksti (`writeDrafts`) ja yritysloki (`writeLog`: sanamäärä, virheiden määrä, valmis/ei) säilyvät vain
+tällä laitteella. Ne eivät ole mukana varmuuskopiossa. Kirjoittamiseen käytetty aika kirjautuu päivän harjoitteluaikaan
+(tauot katkaistaan 45 sekuntiin).
+
+**Äänet:** mallivastausten ja saatujen viestien lauseet äänitetään samalla Kokoro-äänellä kuin muu sisältö
+(`tools/tts/texts.mjs` käyttää samaa lauseisiin jakoa kuin sovellus, `speechParts`).
 
 ## Kehitys
 
@@ -74,8 +99,11 @@ js/
   speakable.js    tekstin muokkaus äänentoistoa varten (päivämäärät järjestyslukuina, aukon merkit pois)
   match.js        puheen ja kirjoituksen täsmäys (numerot yhtenäistetään: 3 = third = three)
   stats.js        edistymisluvut
-  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, sanasto, edistyminen, asetukset)
+  writing.js      kirjoitustehtävien tarkistus (puhdas moduuli): sanamäärä, sisältökohdat, ilmaukset, rakenne, lauseisiin jako
+  writing-rules.js  virhesäännöt (taulukko; jokaisella tunniste, luokka, vakavuus, selitys ja korjaus)
+  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, kirjoita, sanasto, edistyminen, asetukset)
 data/units.js     sisältö (aiheet ja ilmaukset)
+data/writing.js   kirjoitustehtävät (tilanne, sisältökohdat, harjoiteltavat ilmaukset, mallivastaus)
 audio/            esiäänitetyt leikkeet (.ogg) ja manifest.json; GitHub Actions generoi ja tallentaa nämä
 tests/            yksikkötestit ja tests/e2e (Playwright)
 tools/            stamp.mjs, kuvakkeiden luonti, FSRS-vertailutoteutus
@@ -101,13 +129,13 @@ julkaisee sovelluksen mukana. Mallia ei ajeta laitteella.
 **Toimintaperiaate**
 
 1. `tools/tts/texts.mjs` luettelee kaikki tekstit, jotka sovellus voi lukea (ilmaus, esimerkkilause, malli, täytetty
-   aukkolause, asetusten testilause) ja erikseen ne, joilla on "Hitaasti"-painike. Tekstit ovat `speakable()`-muodossa.
+   aukkolause, kirjoitustehtävän mallivastauksen ja saadun viestin lauseet, asetusten testilause) ja erikseen ne, joilla on "Hitaasti"-painike. Tekstit ovat `speakable()`-muodossa.
 2. `tools/tts/generate.py` tekee jokaisesta tekstistä leikkeen (Kokoron nopeus normaali 0,76 ≈ 155 sanaa minuutissa, hidas 0,55
    ≈ 110; ensimmäinen ajo 0,9 oli noin 190 sanaa minuutissa eli liian nopea), leikkaa hiljaisuudet,
    tasaa voimakkuuden, pakkaa Opus-muotoon ja kirjoittaa `audio/manifest.json`in (teksti → tiedoston tunniste).
    Tiedoston nimi on tiiviste tekstistä, äänestä, nopeudesta ja putken versiosta, joten valmiita leikkeitä ei tehdä
    uudelleen eikä vanha leike voi jäädä käyttöön. Tarpeettomat tiedostot poistetaan.
-3. `.github/workflows/kokoro-audio.yml` ajaa tämän GitHub Actionsissa, kun `data/`, `js/speakable.js` tai `tools/tts/`
+3. `.github/workflows/kokoro-audio.yml` ajaa tämän GitHub Actionsissa, kun `data/`, `js/speakable.js`, `js/content.js`, `js/writing.js` tai `tools/tts/`
    muuttuu (tai käsin: Actions → Kokoro audio → Run workflow, valinta "force" tekee kaiken uudelleen), ja tallentaa
    tuloksen `main`-haaraan. Aja ennen omaa pushia `git pull --rebase`, jos botti on ehtinyt tallentaa äänet.
 4. Sovellus (`js/clips.js`, `js/speech.js`) hakee leikkeen manifestista. Jos leikettä ei ole tai sitä ei saada ladattua,
@@ -140,8 +168,9 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 ## Yksityisyys ja turvallisuus
 
-- Oppimisdata (kortit, kertaushistoria, asetukset) tallentuu vain selaimen IndexedDB-tietokantaan. Varmuuskopio on käyttäjän
-  oma JSON-tiedosto, eikä se sisällä API-avaimia.
+- Oppimisdata (kortit, kertaushistoria, asetukset, kirjoitusluonnokset ja -yritysloki) tallentuu vain selaimen IndexedDB-tietokantaan.
+  Varmuuskopio on käyttäjän oma JSON-tiedosto (kortit, kertaushistoria, asetukset), eikä se sisällä API-avaimia eikä kirjoitusluonnoksia.
+- Kirjoita-näkymän sääntötarkistus toimii kokonaan laitteella: kirjoittamaasi tekstiä ei lähetetä minnekään.
 - Puheentunnistus käyttää selaimen omaa tunnistusta. Kun laite on verkossa, Chrome voi lähettää äänen
   tunnistuspalveluunsa. Äänitallenteita ei tallenneta. Asetuksista voi valita kirjoittamisen mikrofonin sijaan.
 - Kaikki `juukal-ctrl.github.io`-osoitteen sivut jakavat saman selainympäristön (origin). Siksi mitään salaista ei
