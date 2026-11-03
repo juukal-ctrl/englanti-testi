@@ -59,6 +59,17 @@ async function main() {
       log.push({ ts: Date.now(), id: itemId, pct });
       await db.setKv('speakLog', log.slice(-300));
     },
+    /** Kello harjoitusten ajanmittaukseen. Testit voivat korvata tämän valekellolla. */
+    now: () => performance.now(),
+    /** Lisää päivän harjoitteluaikaan `ms` (millisekuntia). Säilytetään 120 päivältä. */
+    async logActivity(ms) {
+      if (!(ms > 0)) return;
+      const day = srs.today();
+      const log = await db.getKv('activity', {});
+      log[day] = (log[day] ?? 0) + Math.round(ms);
+      for (const key of Object.keys(log)) if (Number(key) < day - 120) delete log[key];
+      await db.setKv('activity', log);
+    },
     nav: (route) => {
       location.hash = `#/${route}`;
     },

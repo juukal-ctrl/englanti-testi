@@ -3,6 +3,7 @@
 // tunnistus toimii verkossa (varmuus ~0,97) ja lentokonetilassa (varmuus 0,00 eli vain täsmäys käytössä).
 
 import { sleep } from './util.js';
+import { speakable } from './speakable.js';
 
 const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
 const SR = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition || null;
@@ -55,7 +56,12 @@ async function pickVoice(voiceURI) {
   return list.find((v) => v.voiceURI === voiceURI) ?? list[0] ?? null;
 }
 
+// Jokainen uusi toisto tai pysäytys kasvattaa tätä. Jono (speakSequence) lopettaa, jos luku on vaihtunut,
+// joten pysäytys tai toinen toisto katkaisee myös jonon seuraavat osat.
+let epoch = 0;
+
 export function stopSpeaking() {
+  epoch++;
   if (synth) synth.cancel();
 }
 
@@ -63,13 +69,40 @@ export function stopSpeaking() {
  * Lukee tekstin ääneen. Palauttaa { ok, kind, error? } kun puhe on päättynyt tai epäonnistunut.
  * Kahdessa vartijassa: ei käynnistynyt 6 s:ssa, tai ei päättynyt 30 s:ssa.
  */
-export async function speak(text, { rate = 1, voiceURI = '', onStart } = {}) {
-  if (!ttsSupported() || !String(text ?? '').trim()) return { ok: false, kind: 'unsupported' };
-  synth.cancel();
-  await sleep(60); // Chrome pudottaa joskus puheen, jos speak() tulee heti cancel():in jälkeen
-  const u = new SpeechSynthesisUtterance(String(text));
+export async function speak(text, opts = {}) {
+  const mine = ++epoch;
+  return speakOne(text, opts, { fresh: true, alive: () => epoch === mine });
+}
+
+/**
+ * Lukee useita tekstejä peräkkäin lyhyin tauoin (esim. ilmaus ja esimerkkilause).
+ * Pysähtyy, jos käyttäjä pysäyttää toiston tai käynnistää toisen.
+ */
+export async function speakSequence(texts, { pauseMs = 450, ...opts } = {}) {
+  const parts = texts.map((t) => speakable(t)).filter(Boolean);
+  if (!ttsSupported() || !parts.length) return { ok: false, kind: 'unsupported' };
+  const mine = ++epoch;
+  let last = { ok: true, kind: 'end' };
+  for (let i = 0; i < parts.length; i++) {
+    if (epoch !== mine) return { ok: true, kind: 'stopped' };
+    last = await speakOne(parts[i], opts, { fresh: i === 0, alive: () => epoch === mine });
+    if (!last.ok || last.kind !== 'end') return last;
+    if (i < parts.length - 1) await sleep(pauseMs);
+  }
+  return last;
+}
+
+async function speakOne(text, { rate = 1, voiceURI = '', onStart } = {}, { fresh = true, alive = () => true } = {}) {
+  const spoken = speakable(text);
+  if (!ttsSupported() || !spoken) return { ok: false, kind: 'unsupported' };
+  if (fresh) {
+    synth.cancel();
+    await sleep(60); // Chrome pudottaa joskus puheen, jos speak() tulee heti cancel():in jälkeen
+  }
+  const u = new SpeechSynthesisUtterance(spoken);
   u.lang = 'en-US';
   const voice = await pickVoice(voiceURI);
+  if (!alive()) return { ok: true, kind: 'stopped' }; // käyttäjä ehti pysäyttää tai käynnistää toisen toiston
   if (voice) u.voice = voice;
   u.rate = rate;
   return new Promise((resolve) => {

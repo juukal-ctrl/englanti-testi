@@ -1,48 +1,66 @@
-// Päivän sessio: kertaus → uutta → puhe → yhteenveto. Aikaraja jaetaan vaiheiden kesken.
+// Päivän sessio: kertaus → uutta → puhe → yhteenveto. Sessio on aikarajattu: uusia ilmauksia otetaan niin paljon
+// kuin aikaan mahtuu (päivärajaan asti), ja loppuaika käytetään puheharjoitukseen.
 
-import { h, clear, fmtMinutes } from '../util.js';
+import { h, clear, fmtMinutes, fmtDay, clamp } from '../util.js';
 import { nextNewItems } from '../content.js';
 import { runTasks, reviewTasks, newContentTasks, shadowTasks } from '../runner.js';
 import { summarize } from '../stats.js';
-import { fmtDay } from '../util.js';
+
+export const REVIEW_SHARE = 0.45; // kertaus saa enintään tämän osuuden ajasta, jotta uutta ehtii aina
+export const SPEAK_RESERVE_MS = 3 * 60000; // puheharjoitukselle varattu loppuaika
+export const CHUNK_RESERVE_MS = 2.5 * 60000; // uutta ryhmää ei aloiteta, ellei sille jää tämän verran aikaa
+export const SHADOW_TASK_MS = 30000; // arvio yhden puhetehtävän kestosta
 
 export async function mount(root, ctx, params = []) {
   const extra = params[0] === 'extra';
   const ac = new AbortController();
   const s = ctx.settings();
+  const now = () => (ctx.now ? ctx.now() : performance.now());
   const total = s.sessionMinutes * 60000;
-  const t0 = performance.now();
-  const elapsed = () => performance.now() - t0;
-  const result = { reviewed: 0, again: 0, learned: 0, speak: [], quit: false };
+  const t0 = now();
+  const elapsed = () => now() - t0;
+  const result = { reviewed: 0, again: 0, learned: 0, known: 0, speak: [], quit: false };
+  const speakReserve = Math.min(SPEAK_RESERVE_MS, total * 0.2);
+  const chunkReserve = Math.min(CHUNK_RESERVE_MS, total * 0.25);
 
   (async () => {
     // 1. Kertaus
     const rt = reviewTasks(ctx, 60);
     if (rt.length) {
-      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: total * 0.35, signal: ac.signal });
+      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: total * REVIEW_SHARE, signal: ac.signal });
       result.reviewed += st.graded;
       result.again += st.again;
       if (st.ended === 'quit') return finish(true);
     }
-    // 2. Uudet ilmaukset
+
+    // 2. Uudet ilmaukset: ryhmä kerrallaan, kunnes aika tai päiväraja tulee vastaan.
+    // "Osaan jo" -ilmaukset eivät kuluta päivän rajaa, joten niiden jälkeen otetaan lisää.
     const today = ctx.srs.today();
-    const allowed = extra ? s.newPerDay : Math.max(0, s.newPerDay - ctx.srs.introducedToday(today));
-    const items = nextNewItems((id) => ctx.srs.isLearned(id), allowed);
-    if (items.length) {
-      const before = ctx.srs.introducedToday(today);
-      const st = await runTasks(ctx, root, newContentTasks(items), {
-        title: 'Uutta',
-        budgetMs: Math.max(total * 0.3, (total - elapsed()) * 0.5),
-        signal: ac.signal,
-      });
-      result.learned += Math.max(0, ctx.srs.introducedToday(today) - before);
+    let allowed = extra ? s.newMax : Math.max(0, s.newMax - ctx.srs.introducedToday(today));
+    let handled = 0;
+    const handledMax = Math.max(allowed * 2, allowed + 6); // varmuus: ei loputonta ohittelua
+    while (allowed > 0 && handled < handledMax && !ac.signal.aborted) {
+      const left = total - speakReserve - elapsed();
+      if (left < chunkReserve) break;
+      const items = nextNewItems((id) => ctx.srs.isLearned(id), allowed);
+      if (!items.length) break;
+      const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: 'Uutta', budgetMs: left, reserveMs: chunkReserve, signal: ac.signal });
+      result.learned += st.taught;
+      result.known += st.known;
       result.again += st.again;
+      result.speak.push(...st.speak);
+      handled += st.taught + st.known;
+      allowed -= st.taught;
       if (st.ended === 'quit') return finish(true);
+      if (st.ended === 'time' || st.taught + st.known === 0) break;
     }
-    // 3. Puhe
-    const st = await runTasks(ctx, root, shadowTasks(ctx, 4), {
+
+    // 3. Puhe: jäljellä oleva aika, 3–8 lausetta
+    const remaining = Math.max(0, total - elapsed());
+    const n = clamp(Math.round(remaining / SHADOW_TASK_MS), 3, 8);
+    const st = await runTasks(ctx, root, shadowTasks(ctx, n), {
       title: 'Puhe',
-      budgetMs: Math.max(total * 0.2, total - elapsed() - 45000),
+      budgetMs: Math.max(speakReserve, remaining),
       signal: ac.signal,
     });
     result.speak.push(...st.speak);
@@ -85,6 +103,7 @@ export async function renderSummary(root, ctx, result, ms, { title = 'Valmis' } 
         { class: 'facts big' },
         stat('Kertasit', `${result.reviewed ?? 0}`),
         stat('Opit uutta', `${result.learned ?? 0}`),
+        result.known ? stat('Osasit jo', `${result.known}`) : null,
         stat('Puheharjoituksen täsmäys', avgSpeak == null ? '–' : `${avgSpeak} %`),
         stat('Seuraava kertaus', next ? `${fmtDay(next.day, today)} (${next.n})` : '–'),
       ),

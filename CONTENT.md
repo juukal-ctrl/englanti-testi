@@ -33,7 +33,13 @@ Opetusjärjestys on `UNIT_ORDER`-listassa.
 | `ex` | kyllä | Esimerkkilause työtilanteesta. Aukkoa sisältävän ilmauksen esimerkin on sisällettävä ilmauksen alku. |
 | `note` | ei | Suomenkielinen kontrastiivinen huomautus (enintään 360 merkkiä), mieluiten suomalaisen tyypillisestä virheestä. |
 | `cz` | ei | Aukkotehtävä: `[lause, jossa ___, oikea vastaus, [2–3 väärää vaihtoehtoa]]`. |
-| `say` | ei | Ääneen luettava versio, jos se poikkeaa `en`-kentästä. Oletuksena `en`, tai `ex`, jos `en` sisältää aukon. |
+| `say` | ei | Ääneen luettava versio, jos se poikkeaa `en`-kentästä. Oletuksena `en`, tai `ex`, jos `en` sisältää aukon. Puhetehtävässä (kuuntele ja sano perässä) käytetään tätä. |
+
+### Äänentoisto ja numerot
+
+- Kaiutinpainike lukee aina sen tekstin, joka on painikkeen vieressä (ilmaus tai esimerkkilause). Automaattinen toisto lukee ilmauksen ja sen jälkeen esimerkkilauseen.
+- Kirjoita päivämäärät ja numerot numeroina (`October 3`, `at 3 p.m.`). Äänentoisto muuttaa päivämäärän järjestysluvuksi (*October third*), ja täsmäys hyväksyy numeron kaikissa muodoissa (`3`, `third`, `three`), joten oppijaa ei rangaista siitä, että hän sanoo päivämäärän oikein.
+- `…` (aukko) ja `…-ing` jätetään lukematta. Aukon sisältävän ilmauksen esimerkin pitää sisältää ilmauksen alku, jotta se voidaan kuunnella kokonaisena.
 
 ## Laatulista uudelle sisällölle
 

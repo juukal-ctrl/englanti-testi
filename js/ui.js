@@ -1,7 +1,7 @@
 // Yhteiset käyttöliittymän osat: kuvakkeet, ilmoitukset, vahvistusikkuna, äänipainike.
 
 import { h, en } from './util.js';
-import { speak, stopSpeaking, ttsSupported } from './speech.js';
+import { speak, speakSequence, stopSpeaking, ttsSupported } from './speech.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -117,36 +117,45 @@ export function choiceDialog({ title, body, choices }) {
 /* ---------- Äänipainike ---------- */
 
 /**
- * Painike, joka lukee tekstin ääneen. getText kutsutaan painalluksen hetkellä.
- * Palauttaa { el, play } – play() voi käynnistää toiston koodista (automaattinen toisto).
+ * Painike, joka lukee tekstin ääneen. getText kutsutaan painalluksen hetkellä ja palauttaa merkkijonon tai
+ * merkkijonojen listan (luetaan peräkkäin). Periaate: painike lukee sen tekstin, joka on sen vieressä.
+ * autoText (valinnainen) on automaattisen toiston teksti, esim. ilmaus ja sen esimerkkilause peräkkäin.
+ * slow = true luo lisäksi "Hitaasti"-painikkeen (slowEl), joka lukee saman tekstin hitaammin.
+ * Palauttaa { el, slowEl, play } – play() voi käynnistää toiston koodista ja palauttaa toiston tuloksen.
  */
-export function speakButton(getText, ctx, { label = 'Kuuntele' } = {}) {
+export function speakButton(getText, ctx, { label = 'Kuuntele', autoText = null, slow = false } = {}) {
   let playing = false;
   const btn = h('button', { class: 'icon-btn speak', type: 'button', 'aria-label': label }, icon('speaker'));
-  const set = (on) => {
+  const slowEl = slow ? h('button', { class: 'btn small slow', type: 'button', 'aria-label': `${label} hitaasti` }, 'Hitaasti') : null;
+  const set = (on, kind = 'normal') => {
     playing = on;
-    btn.classList.toggle('playing', on);
+    btn.classList.toggle('playing', on && kind === 'normal');
+    slowEl?.classList.toggle('playing', on && kind === 'slow');
   };
   /** auto = true: automaattinen toisto. Silloin epäonnistuminen on hiljaista, eikä toistoa yritetä ilman käyttäjän kosketusta. */
-  const play = async ({ auto = false } = {}) => {
+  const play = async ({ auto = false, slow: slowly = false } = {}) => {
     if (!ttsSupported()) {
       if (!auto) toast('Tällä selaimella ei ole puhesynteesiä.');
-      return;
+      return undefined;
     }
-    if (auto && navigator.userActivation && !navigator.userActivation.hasBeenActive) return; // selain estäisi puheen joka tapauksessa
+    if (auto && navigator.userActivation && !navigator.userActivation.hasBeenActive) return undefined; // selain estäisi puheen joka tapauksessa
     if (playing) {
       stopSpeaking();
       set(false);
-      return;
+      return undefined;
     }
-    set(true);
+    set(true, slowly ? 'slow' : 'normal');
     const s = ctx.settings();
-    const res = await speak(getText(), { rate: s.rate, voiceURI: s.voiceURI });
+    const opts = { rate: slowly ? Math.max(0.5, s.rate * 0.7) : s.rate, voiceURI: s.voiceURI };
+    const text = auto && autoText ? autoText() : getText();
+    const res = Array.isArray(text) ? await speakSequence(text, opts) : await speak(text, opts);
     set(false);
-    if (!auto && !res.ok && res.kind !== 'unsupported') toast('Ääntä ei saatu toistettua. Kokeile asetuksista toista ääntä.');
+    if (!auto && !res.ok && res.kind !== 'unsupported') toast('Ääntä ei saatu toistettua. Kokeile asetuksista jotakin muuta ääntä.');
+    return res;
   };
   btn.addEventListener('click', () => play());
-  return { el: btn, play };
+  slowEl?.addEventListener('click', () => play({ slow: true }));
+  return { el: btn, slowEl, play };
 }
 
 /* ---------- Pienet rakenneosat ---------- */

@@ -1,11 +1,14 @@
 // Asetukset: oletukset ja siivous. Sama siivous suojaa varmuuskopion tuonnissa.
 
+export const SETTINGS_VERSION = 2;
+
 export const DEFAULT_SETTINGS = Object.freeze({
+  v: SETTINGS_VERSION, // asetusten versio (v1: rate 0,95 ja newPerDay 6 olivat oletuksia)
   retention: 0.9, // FSRS:n tavoitesäilyvyys
-  newPerDay: 6, // uusia ilmauksia päivässä
+  newMax: 12, // uusien ilmausten yläraja päivässä; sessio ottaa niitä niin paljon kuin aikaan mahtuu
   sessionMinutes: 15, // ydinsession pituus
   voiceURI: '', // tyhjä = automaattinen valinta
-  rate: 0.95, // puhenopeus
+  rate: 0.85, // puhenopeus
   theme: 'auto', // auto | light | dark
   textScale: 1, // tekstin koko
   clearText: false, // selkeä tekstitila (väljempi rivi- ja kirjainväli)
@@ -19,7 +22,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 const RULES = {
   retention: { type: 'number', min: 0.7, max: 0.97 },
-  newPerDay: { type: 'int', min: 0, max: 30 },
+  newMax: { type: 'int', min: 0, max: 30 },
   sessionMinutes: { type: 'int', min: 5, max: 60 },
   voiceURI: { type: 'string', max: 200 },
   rate: { type: 'number', min: 0.6, max: 1.3 },
@@ -38,8 +41,12 @@ const RULES = {
 export function sanitizeSettings(input) {
   const out = { ...DEFAULT_SETTINGS };
   if (!input || typeof input !== 'object' || Array.isArray(input)) return out;
+  // Vanhat asetukset (ennen versiota 2): entinen oletusnopeus 0,95 oli liian nopea, joten se vaihtuu uuteen oletukseen.
+  // Jos käyttäjä on itse muuttanut nopeutta, se säilyy. Kun asetukset tallennetaan, versio päivittyy eikä tätä tehdä enää.
+  const legacy = !(typeof input.v === 'number' && input.v >= SETTINGS_VERSION);
   for (const [key, rule] of Object.entries(RULES)) {
     if (!(key in input)) continue;
+    if (legacy && key === 'rate' && input.rate === 0.95) continue;
     const v = input[key];
     switch (rule.type) {
       case 'number':

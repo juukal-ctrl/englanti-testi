@@ -56,14 +56,17 @@ const itemByFi = (page, fi) =>
 /**
  * Pelaa tehtäväjonon loppuun. policy:
  *  - wrongChoose: joukko (järjestysnumeroita) valintatehtäviä, joihin vastataan väärin
+ *  - known: joukko (järjestysnumeroita) opetustehtäviä, joissa painetaan "Osaan tämän jo"
  *  - grade: arvosana (1–4), jonka itsearvioitaviin tehtäviin antaa (oletus 3)
  *  - prod: 'mic' | 'type' | 'reveal' vastaustapa flip-prod-tehtävissä
  *  - maxSteps: pelattavien tehtävien enimmäismäärä (oletus: kunnes yhteenveto)
+ *  - tick: valekellon edistys (ms) jokaista tehtävää kohti; vaatii window.__fakeT:n ja ctx.now:n korvauksen
  */
 async function playRunner(page, policy = {}) {
-  const { wrongChoose = new Set(), grade = 3, prod = 'mic', maxSteps = 120, onShown, onRevealed } = policy;
+  const { wrongChoose = new Set(), known = new Set(), grade = 3, prod = 'mic', maxSteps = 250, tick = 0, onShown, onRevealed } = policy;
   const log = [];
   let chooseIndex = 0;
+  let teachIndex = 0;
   const squareIcons = async (where) => {
     const bad = await page.evaluate(() =>
       [...document.querySelectorAll('.runner-box .icon-btn')].map((b) => b.getBoundingClientRect()).filter((r) => r.width > 0 && Math.abs(r.width - r.height) > 2).map((r) => `${Math.round(r.width)}x${Math.round(r.height)}`),
@@ -85,6 +88,7 @@ async function playRunner(page, policy = {}) {
   // Napsauttaa tehtävän päättävää painiketta ja odottaa, että seuraava tehtävä (tai yhteenveto) on piirretty.
   const advance = async (click) => {
     const before = await page.evaluate(() => window.__sig());
+    if (tick) await page.evaluate((ms) => { window.__fakeT += ms; }, tick);
     await click();
     await page.waitForFunction((b) => window.__sig() !== b, before, { timeout: 10000 });
   };
@@ -99,8 +103,11 @@ async function playRunner(page, policy = {}) {
     await garbage(kind);
     await onShown?.(kind);
 
-    if (kind === 'teach') {
+    if (kind === 'intro') {
       await advance(() => page.click('.runner-box .actions .btn.primary'));
+    } else if (kind === 'teach') {
+      rec.known = known.has(teachIndex++);
+      await advance(() => page.click(rec.known ? '.runner-box .actions .btn.link' : '.runner-box .actions .btn.primary'));
     } else if (kind === 'choose') {
       const info = await page.evaluate(() => {
         const s = document.querySelector('.runner-box .sentence').textContent;
@@ -120,6 +127,7 @@ async function playRunner(page, policy = {}) {
     } else if (kind === 'flip-rec') {
       await page.click('.runner-box .actions .btn.primary.big');
       await page.waitForSelector('.runner-box .grades');
+      rec.gradeCount = await page.locator('.runner-box .grades .btn').count();
       await garbage('flip-rec-vastaus');
       await onRevealed?.(kind, rec);
       await advance(() => page.click(`.runner-box .grades [data-grade="${grade}"]`));
@@ -149,6 +157,7 @@ async function playRunner(page, policy = {}) {
       await onRevealed?.(kind, rec);
       if ((await page.locator('.runner-box .grades').count()) > 0) {
         rec.suggested = await page.locator('.runner-box .grades .suggested').count();
+        rec.gradeCount = await page.locator('.runner-box .grades .btn').count();
         await advance(() => page.click(`.runner-box .grades [data-grade="${grade}"]`));
       } else {
         rec.practice = true;
@@ -170,7 +179,7 @@ async function playRunner(page, policy = {}) {
     }
     log.push(rec);
   }
-  if (maxSteps < 120) return { log, end: null };
+  if (policy.maxSteps !== undefined) return { log, end: null };
   throw new Error('tehtäväjono ei päättynyt');
 }
 
@@ -211,18 +220,32 @@ const dbState = (page) =>
     await page.waitForSelector('#view h1');
     check('ensikäyttökortti pysyy suljettuna uudelleenlatauksen jälkeen', (await page.locator('.card.intro').count()) === 0);
     await noGarbage(page, 'Tänään');
+    const plan = await page.textContent('.plan');
+    check('suunnitelma kertoo uuden sisällön ja puheen', /Uutta: enintään 12 ilmausta/.test(plan) && /Puhetta/.test(plan), plan);
     await shot(page, '01-tanaan');
 
     await page.click('a.btn.primary.big[href="#/session"]');
     await page.waitForSelector('.runner');
     const first = await page.evaluate(() => window.__kind());
-    check('sessio alkaa uudella ilmauksella (ei erääntyneitä)', first === 'teach', first);
-    await shot(page, '02-uusi-ilmaus');
+    check('sessio alkaa aiheen esittelyllä (ei erääntyneitä)', first === 'intro', first);
+    const introText = await page.textContent('.runner-box');
+    check('aiheen esittelyssä on aihe ja aloituspainike', /Sähköpostin avaus/.test(introText) && /Aloitetaan/.test(introText), introText);
+    await shot(page, '02-aiheen-esittely');
     const taken = new Set();
     const res = await playRunner(page, {
       prod: 'mic',
       onShown: async (kind) => {
-        if ((kind === 'choose' || kind === 'shadow') && !taken.has('shown-' + kind)) {
+        if (kind === 'teach' && !taken.has('teach-checks')) {
+          taken.add('teach-checks');
+          // Automaattinen toisto: ensin ilmaus, sitten esimerkkilause (päivämäärä järjestyslukuna).
+          await page.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+          const sp = await page.evaluate(() => window.__spoken.slice(0, 2));
+          check('opetuksessa ääni lukee ensin ilmauksen ja sitten esimerkkilauseen', sp[0] === "I'm writing to follow up on" && sp[1] === "I'm writing to follow up on the invoice we sent on October third.", JSON.stringify(sp));
+          const t = await page.textContent('.runner-box');
+          check('opetusnäkymä ohjeistaa sanomaan ilmauksen ääneen', /Sano ilmaus ääneen/.test(t), t);
+          check('opetusnäkymässä on "Osaan tämän jo" ja "Hitaasti"', /Osaan tämän jo/.test(t) && /Hitaasti/.test(t), t);
+        }
+        if (kind !== 'intro' && !taken.has('shown-' + kind)) {
           taken.add('shown-' + kind);
           await shot(page, `30-${kind}-alussa`);
         }
@@ -235,23 +258,41 @@ const dbState = (page) =>
       },
     });
     const kinds = res.log.map((l) => l.kind);
+    const count = (k) => kinds.filter((x) => x === k).length;
+    const tests = res.log.filter((l) => l.kind === 'choose' || l.kind === 'flip-rec');
+    const produce = res.log.filter((l) => l.kind === 'flip-prod');
+    const shadows = res.log.filter((l) => l.kind === 'shadow');
     check('sessio päättyy yhteenvetoon', res.end === 'summary', res.end);
-    check('6 opetusta, 6 testiä ja 4 puheharjoitusta', kinds.filter((k) => k === 'teach').length === 6 && kinds.filter((k) => k === 'shadow').length === 4 && kinds.filter((k) => k === 'choose' || k === 'flip-rec').length === 6, kinds.join(','));
-    check('puheharjoituksissa täsmäys 100 %', res.log.filter((l) => l.kind === 'shadow').every((l) => /100 %/.test(l.result ?? '')), JSON.stringify(res.log.filter((l) => l.kind === 'shadow')));
+    check('12 opetusta, 12 testiä, 12 tuottamisharjoitusta ja 8 puhelausetta', count('teach') === 12 && tests.length === 12 && produce.length === 12 && shadows.length === 8, kinds.join(','));
+    check('aiheen esittely näytetään kerran ennen aiheen ensimmäistä ilmausta', count('intro') === 1 && kinds[0] === 'intro' && kinds[1] === 'teach', kinds.slice(0, 3).join(','));
+    const shape = kinds.slice(0, 10).map((k) => (k === 'choose' || k === 'flip-rec' ? 'test' : k)).join(',');
+    check('ryhmän rakenne: esittely, 3 opetusta, 3 testiä, 3 tuottamista', shape === 'intro,teach,teach,teach,test,test,test,flip-prod,flip-prod,flip-prod', shape);
+    check('puhe tulee vasta uuden sisällön jälkeen', kinds.slice(-8).every((k) => k === 'shadow'), kinds.slice(-9).join(','));
+    check('tuottamisharjoituksissa ei kysytä arvosanaa', produce.every((l) => l.practice === true), JSON.stringify(produce.filter((l) => !l.practice)));
+    const flipRecs = tests.filter((l) => l.kind === 'flip-rec');
+    check('ensimmäisillä kerroilla "Helppo" on piilotettu (3 arvosanaa)', flipRecs.length > 0 && flipRecs.every((l) => l.gradeCount === 3), JSON.stringify(flipRecs.map((l) => l.gradeCount)));
+    check('puheharjoituksissa täsmäys 100 %', shadows.every((l) => /100 %/.test(l.result ?? '')), JSON.stringify(shadows));
     const summary = await page.textContent('.summary');
-    check('yhteenvedossa opittu 6', /Opit uutta\s*6/.test(summary), summary);
+    check('yhteenvedossa opittu 12', /Opit uutta\s*12/.test(summary), summary);
     check('yhteenvedossa puhetäsmäys 100 %', /100 %/.test(summary), summary);
     await noGarbage(page, 'yhteenveto');
     await shot(page, '03-yhteenveto');
     await overflow(page, 'yhteenveto');
     const spoken = await page.evaluate(() => window.__spoken);
-    check('uuden ilmauksen ääni toistuu automaattisesti (ilmaukset ja esimerkit)', spoken.includes("I'm writing to follow up on the invoice we sent on October 3.") && spoken.length >= 6, JSON.stringify(spoken.slice(0, 4)));
+    check('päivämäärä luetaan järjestyslukuna ("October third", ei "October three")', spoken.some((t) => /October third\./.test(t)) && !spoken.some((t) => /October (3|three)\b/.test(t)), JSON.stringify(spoken.slice(0, 4)));
+    check('aukon merkkiä (…) ei lueta ääneen', spoken.every((t) => !t.includes('…')), JSON.stringify(spoken.filter((t) => t.includes('…'))));
+    const rates = await page.evaluate(() => [...new Set(window.__rates)]);
+    check('puhenopeus on oletuksena 0,85', rates.length === 1 && rates[0] === 0.85, JSON.stringify(rates));
     const st = await dbState(page);
-    check('tietokannassa 6 korttia ja 6 kertaustapahtumaa', st.cards === 6 && st.reviews === 6 && st.learned === 6, JSON.stringify(st));
+    check('tietokannassa 12 korttia ja 12 kertaustapahtumaa', st.cards === 12 && st.reviews === 12 && st.learned === 12, JSON.stringify(st));
+    const act = await page.evaluate(async () => await window.__englanti.db.getKv('activity', {}));
+    check('harjoitteluaika kirjautuu päiväkohtaisesti', Object.values(act).reduce((a, b) => a + b, 0) > 0, JSON.stringify(act));
     await page.click('.summary a.btn.primary');
     await page.waitForSelector('#view h1');
     const heroTitle = await page.textContent('.hero h2');
     check('Tänään kertoo session olevan tehty', /tehty/.test(heroTitle), heroTitle);
+    const heroText = await page.textContent('.hero');
+    check('Tänään näyttää todellisen harjoitteluajan', /Harjoittelit tänään \d+/.test(heroText), heroText);
   });
 
   /* ===== 2. Vääriin vastauksiin palaaminen (uudelleenjono) ===== */
@@ -270,10 +311,10 @@ const dbState = (page) =>
       },
     });
     const choose = res.log.filter((l) => l.kind === 'choose' || l.kind === 'flip-rec');
-    check('väärä vastaus tuo tehtävän takaisin jonoon', choose.length >= 7, `testejä ${choose.length}`);
+    check('väärä vastaus tuo tehtävän takaisin jonoon', choose.length >= 13, `testejä ${choose.length}`);
     check('väärän vastauksen palaute näkyy', res.log.some((l) => l.kind === 'choose' && l.correct === false && /Ei aivan/.test(l.verdict)), JSON.stringify(res.log.filter((l) => l.kind === 'choose')));
     const st = await dbState(page);
-    check('toinen sessio lisäsi uusia ilmauksia (12 korttia)', st.cards === 12, JSON.stringify(st));
+    check('toinen sessio lisäsi uusia ilmauksia (24 korttia)', st.cards === 24, JSON.stringify(st));
     await shot(page, '04-lisasessio-yhteenveto');
   });
 
@@ -297,7 +338,7 @@ const dbState = (page) =>
     const title2 = await page.textContent('.summary h1');
     check('yhteenvedon otsikko "Kertaus tehty"', title2 === 'Kertaus tehty', title2);
     const st = await dbState(page);
-    check('kertaushistoria kasvoi', st.reviews > 12, JSON.stringify(st));
+    check('kertaushistoria kasvoi', st.reviews > 24, JSON.stringify(st));
   });
 
   /* ===== 4. Vanhemmat kortit: tuottamistehtävät (puhe, kirjoitus, paljastus) ===== */
@@ -368,7 +409,7 @@ const dbState = (page) =>
     await page.fill('#q', '');
     await page.selectOption('#f', 'learned');
     const learned = await page.textContent('[role=status]');
-    check('Opitut-suodatin näyttää 12 ilmausta', /^12 ilmausta/.test(learned), learned);
+    check('Opitut-suodatin näyttää 24 ilmausta', /^24 ilmausta/.test(learned), learned);
     await page.locator('details.vocab-item summary').first().click();
     await noGarbage(page, 'Sanasto');
     await shot(page, '10-sanasto');
@@ -389,7 +430,7 @@ const dbState = (page) =>
     const status = await page.textContent('.attempt-status');
     check('"ei puhetta" -virhe näytetään', /En kuullut puhetta/.test(status), status);
     const res = await playRunner(page);
-    check('Kuuntele ja toista päättyy yhteenvetoon', res.end === 'summary', res.end);
+    check('Kuuntele ja sano perässä päättyy yhteenvetoon', res.end === 'summary', res.end);
     check('yhteenvedon otsikko on "Puheharjoitus valmis"', (await page.textContent('.summary h1')) === 'Puheharjoitus valmis');
 
     await page.click('#nav a[data-nav="speak"]'); // sama osoite: näkymän on piirryttävä uudelleen
@@ -417,13 +458,17 @@ const dbState = (page) =>
     await overflow(page, 'Edistyminen');
     await navTo(page, 'today');
     const facts = await page.textContent('.facts');
-    check('Tänään-näkymän tilanne näyttää opitut', /12 \/ 126/.test(facts), facts);
+    check('Tänään-näkymän tilanne näyttää opitut', /24 \/ 126/.test(facts), facts);
   });
 
   /* ===== 8. Asetukset ===== */
   await run('asetukset', async () => {
     await navTo(page, 'settings');
     await noGarbage(page, 'Asetukset');
+    const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
+    const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
+    const about = await page.textContent('#about');
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.2\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');
@@ -448,7 +493,7 @@ const dbState = (page) =>
     await page.reload();
     await page.waitForSelector('#view h1');
     const saved = await page.evaluate(() => window.__englanti.settings());
-    check('asetukset säilyvät uudelleenlatauksen jälkeen', saved.newPerDay === 9 && saved.textScale === 1.2 && saved.clearText === true && saved.speakMode === 'type', JSON.stringify(saved));
+    check('asetukset säilyvät uudelleenlatauksen jälkeen', saved.newMax === 9 && !('newPerDay' in saved) && saved.textScale === 1.2 && saved.clearText === true && saved.speakMode === 'type', JSON.stringify(saved));
     check('tekstin koko vaikuttaa juurielementtiin', (await page.evaluate(() => document.documentElement.style.fontSize)) === '120%');
     await shot(page, '16-asetukset-suuri-teksti');
     // Palautetaan puhetila ja koko muita testejä varten
@@ -470,7 +515,7 @@ const dbState = (page) =>
     await download.saveAs(file);
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     check('varmuuskopion tiedostonimi', /^englanti-varmuuskopio-\d{4}-\d{2}-\d{2}\.json$/.test(download.suggestedFilename()), download.suggestedFilename());
-    check('varmuuskopiossa kortit, tapahtumat ja asetukset', data.app === 'englanti-testi' && data.cards.length === before.cards && data.reviews.length === before.reviews && data.settings && data.settings.newPerDay === 9, JSON.stringify({ app: data.app, cards: data.cards.length, reviews: data.reviews.length }));
+    check('varmuuskopiossa kortit, tapahtumat ja asetukset', data.app === 'englanti-testi' && data.cards.length === before.cards && data.reviews.length === before.reviews && data.settings && data.settings.newMax === 9, JSON.stringify({ app: data.app, cards: data.cards.length, reviews: data.reviews.length }));
     check('varmuuskopio ei sisällä API-avaimia', !/api[_-]?key|AIza|sk-ant/i.test(JSON.stringify(data)));
 
     await page.click('text=Poista kaikki tiedot');
@@ -490,7 +535,7 @@ const dbState = (page) =>
     const restored = await dbState(page);
     check('tuonti palauttaa kortit ja kertaushistorian', restored.cards === before.cards && restored.reviews === before.reviews, JSON.stringify({ before, restored }));
     const settings = await page.evaluate(() => window.__englanti.settings());
-    check('tuonti palauttaa asetukset', settings.newPerDay === 9, JSON.stringify(settings));
+    check('tuonti palauttaa asetukset', settings.newMax === 9, JSON.stringify(settings));
 
     // Rikkinäinen tiedosto hylätään
     await navTo(page, 'settings');
@@ -544,10 +589,10 @@ const dbState = (page) =>
       await page.keyboard.press(key);
       await page.waitForFunction((b) => window.__sig() !== b, before, { timeout: 5000 });
     };
-    for (let i = 0; i < 40 && !(shortcuts.choose && shortcuts.flipRec); i++) {
+    for (let i = 0; i < 60 && !(shortcuts.choose && shortcuts.flipRec); i++) {
       const kind = await page.evaluate(() => window.__kind());
       if (kind === 'summary' || kind === 'none') break;
-      if (kind === 'teach') {
+      if (kind === 'intro' || kind === 'teach') {
         await pressAndWait('Enter');
       } else if (kind === 'choose') {
         const idx = await page.evaluate(() => {
@@ -565,6 +610,13 @@ const dbState = (page) =>
         await page.waitForSelector('.runner-box .grades');
         shortcuts.flipRec = true;
         await pressAndWait('3');
+      } else if (kind === 'flip-prod') {
+        // Tuottamisharjoitus: näytä vastaus ja jatka painikkeella.
+        await page.click('.runner-box .actions .btn:not(.primary)');
+        await page.waitForSelector('.runner-box .answer');
+        const before = await page.evaluate(() => window.__sig());
+        await page.click('.runner-box .actions .btn.primary');
+        await page.waitForFunction((b) => window.__sig() !== b, before, { timeout: 5000 });
       } else {
         break;
       }
@@ -626,8 +678,184 @@ const dbState = (page) =>
     await shot(page, '23-offline-valmis');
   });
 
-  console.log('\nKonsoli- ja verkkovirheet:', problems.length ? '\n  ' + [...new Set(problems)].join('\n  ') : 'ei yhtään');
-  check('ei konsolivirheitä, CSP-rikkomuksia tai epäonnistuneita pyyntöjä', problems.length === 0, problems.join(' | '));
+  /* ===== 12. Tuore asennus: aikaraja, "Osaan jo", puheen ohjeet, numerot ja äänen johdonmukaisuus ===== */
+  const fresh = await launch();
+  const fp = fresh.page;
+  const runOn = async (pg, name, fn) => {
+    try {
+      await fn();
+    } catch (e) {
+      failures++;
+      console.log(`FAIL  ${name}: ${e.stack || e}`);
+      await shot(pg, `virhe-${name.replace(/\W+/g, '-')}`).catch(() => {});
+    }
+  };
+
+  await runOn(fp, 'aikarajattu sessio', async () => {
+    await fresh.context.clock.setFixedTime(DAY1);
+    await go(fp, base);
+    // Valekello: jokainen tehtävä "kestää" 30 s, joten 15 minuutin raja nähdään sekunneissa.
+    await fp.evaluate(() => {
+      window.__fakeT = 0;
+      window.__englanti.now = () => window.__fakeT;
+    });
+    await fp.click('a.btn.primary.big[href="#/session"]');
+    await fp.waitForSelector('.runner');
+    const TICK = 30000;
+    const res = await playRunner(fp, { tick: TICK, known: new Set([0]) });
+    const kinds = res.log.map((l) => l.kind);
+    const count = (k) => kinds.filter((x) => x === k).length;
+    const totalMs = res.log.length * TICK;
+    check('aikarajattu sessio päättyy yhteenvetoon', res.end === 'summary', res.end);
+    check('tehtävät täyttävät noin 15 minuuttia', totalMs >= 13 * 60000 && totalMs <= 17 * 60000, `${(totalMs / 60000).toFixed(1)} min, ${res.log.length} tehtävää`);
+    const summary = await fp.textContent('.summary');
+    const learned = Number((summary.match(/Opit uutta\s*(\d+)/) ?? [])[1]);
+    check('aikaraja rajaa uuden sisällön (vähintään kaksi ryhmää, alle päivärajan 12)', learned >= 6 && learned < 12, summary);
+    check('"Osaan jo" näkyy yhteenvedossa', /Osasit jo\s*1/.test(summary), summary);
+    check('yhteenvedon kesto vastaa valekelloa', /Kesto 1[3-7] min/.test(summary), summary);
+    const tests = res.log.filter((l) => l.kind === 'choose' || l.kind === 'flip-rec');
+    const produce = res.log.filter((l) => l.kind === 'flip-prod');
+    check('osaamattomille ilmauksille tehdään testi ja tuottamisharjoitus, "Osaan jo" -ilmaukselle ei', tests.length === learned && produce.length === learned, `testejä ${tests.length}, tuottamisia ${produce.length}, opittu ${learned}`);
+    const shadows = count('shadow');
+    check('puhetta on loppuajan verran (3–8 lausetta)', shadows >= 3 && shadows <= 8 && kinds.slice(-shadows).every((k) => k === 'shadow'), kinds.slice(-10).join(','));
+    const st = await dbState(fp);
+    check('"Osaan jo" kirjaa kortin ja yhden tapahtuman', st.cards === learned + 1 && st.reviews === learned + 1, JSON.stringify({ st, learned }));
+    const known = await fp.evaluate(async () => (await window.__englanti.db.getAllReviews()).filter((r) => r.mode === 'known').map((r) => ({ id: r.cardId, rating: r.rating })));
+    check('"Osaan jo" kirjautuu helpoksi (4)', known.length === 1 && known[0].rating === 4 && known[0].id === 'mail-01', JSON.stringify(known));
+    const act = await fp.evaluate(async () => await window.__englanti.db.getKv('activity', {}));
+    check('harjoitteluaika kirjautuu valekellon mukaan', Object.values(act).reduce((a, b) => a + b, 0) === totalMs, JSON.stringify({ act, totalMs }));
+    await shot(fp, '41-aikarajattu-yhteenveto');
+    await fp.click('.summary a.btn.primary');
+    await fp.waitForSelector('#view h1');
+    const hero = await fp.textContent('.hero');
+    check('Tänään kertoo harjoitteluajan', /Harjoittelit tänään 1[3-7] min/.test(hero), hero);
+  });
+
+  await runOn(fp, 'puheen ohjeet ja numerot', async () => {
+    await fresh.context.clock.setFixedTime(atDay(0, 16));
+    await go(fp, base);
+    await fp.click('#view h1'); // käyttäjän ele, jotta selain sallii automaattisen äänen
+    await fp.evaluate(async () => {
+      const { runTasks } = await import(new URL('js/runner.js', document.baseURI).href);
+      const ctx = window.__englanti;
+      window.__runStats = null;
+      runTasks(ctx, document.querySelector('#view'), [{ kind: 'shadow', item: ctx.catalog.byId.get('mail-01') }], { title: 'Puhe' }).then((st) => (window.__runStats = st));
+    });
+    await fp.waitForSelector('.runner-box .phrase');
+    check('puhetehtävä näyttää lauseen numeroin', (await fp.textContent('.runner-box .phrase')) === "I'm writing to follow up on the invoice we sent on October 3.", await fp.textContent('.runner-box .phrase'));
+    const text = await fp.textContent('.runner-box');
+    check('ohjeissa on kolme vaihetta', (await fp.locator('.runner-box .steps li').count()) === 3);
+    check('ohjeissa kerrotaan, että lause sanotaan heti perässä', /sano lause ääneen heti perässä/i.test(text), text);
+    check('"Hitaasti"-painike on näkyvissä', (await fp.locator('.runner-box .slow-row .btn.slow').count()) === 1);
+    check('mikrofonipainikkeen nimi on "Sano perässä"', /Sano perässä/.test(await fp.textContent('.runner-box .btn.mic')));
+    await fp.waitForSelector('.runner-box .btn.mic.your-turn', { timeout: 5000 });
+    check('mallin jälkeen kerrotaan oppijan vuoro', /Sinun vuorosi/.test(await fp.textContent('.attempt-status')), await fp.textContent('.attempt-status'));
+    await shot(fp, '39-puhe-sinun-vuorosi');
+    const sp = await fp.evaluate(() => window.__spoken);
+    check('malli luetaan päivämäärä järjestyslukuna', sp.includes("I'm writing to follow up on the invoice we sent on October third."), JSON.stringify(sp));
+
+    // Hitaasti: sama lause, hitaampi nopeus
+    await fp.evaluate(() => {
+      window.__spoken.length = 0;
+      window.__rates.length = 0;
+    });
+    await fp.click('.runner-box .btn.slow');
+    await fp.waitForFunction(() => window.__rates.length >= 1);
+    const slow = await fp.evaluate(() => ({ rate: window.__rates[0], text: window.__spoken[0] }));
+    check('"Hitaasti" lukee saman lauseen nopeudella 0,7 × asetus', Math.abs(slow.rate - 0.595) < 0.001 && slow.text === "I'm writing to follow up on the invoice we sent on October third.", JSON.stringify(slow));
+    await fp.waitForTimeout(200);
+
+    const attempt = async (t, delay = 10) => {
+      await fp.evaluate(([x, d]) => {
+        window.__asrDelay = d;
+        window.__asrQueue.push(x);
+      }, [t, delay]);
+      await fp.click('.runner-box .btn.mic');
+      await fp.waitForSelector('.runner-box .btn.mic.listening');
+    };
+    const settle = () => fp.waitForFunction(() => window.__asrQueue.length === 0 && !document.querySelector('.runner-box .btn.mic.listening'), null, { timeout: 5000 });
+    const pctOf = async () => Number(((await fp.textContent('.runner-box .result-line')).match(/(\d+) %/) ?? [])[1]);
+
+    await attempt("I'm writing to follow up on the invoice we sent on October third", 900);
+    const look = await fp.evaluate(() => {
+      const btn = document.querySelector('.runner-box .btn.mic');
+      const cs = getComputedStyle(btn);
+      const probe = (v) => {
+        const e = document.createElement('i');
+        e.style.color = v;
+        document.body.append(e);
+        const c = getComputedStyle(e).color;
+        e.remove();
+        return c;
+      };
+      return { label: btn.textContent.trim(), bg: cs.backgroundColor, border: cs.borderTopColor, color: cs.color, bad: probe('var(--bad)'), anim: cs.animationName };
+    });
+    check('kuuntelun tila ei ole punainen', look.bg !== look.bad && look.border !== look.bad && look.color !== look.bad, JSON.stringify(look));
+    check('kuuntelun tila sanoo selvästi, että mikrofoni on auki', /Kuuntelen/.test(look.label), look.label);
+    check('kuuntelun tilassa on rauhallinen pulssi', look.anim === 'listen-pulse', look.anim);
+    await shot(fp, '40-kuuntelu');
+    await settle();
+    check('"October third" tunnistetaan oikeaksi (100 %)', (await pctOf()) === 100, await fp.textContent('.runner-box .result-line'));
+
+    await attempt("I'm writing to follow up on the invoice we sent on October 3rd");
+    await settle();
+    check('"October 3rd" tunnistetaan oikeaksi (100 %)', (await pctOf()) === 100, await fp.textContent('.runner-box .result-line'));
+
+    await attempt("I'm writing to follow up on the invoice we sent on October fourth");
+    await settle();
+    const wrongPct = await pctOf();
+    check('väärä päivämäärä ("fourth") ei mene läpi', wrongPct < 100 && (await fp.locator('.runner-box .words .w.wrong').count()) >= 1, `täsmäys ${wrongPct} %`);
+    await shot(fp, '42-puhe-numero-vaarin');
+
+    await fp.click('.runner-box .actions .btn.primary');
+    await fp.waitForFunction(() => window.__runStats !== null);
+    const stats = await fp.evaluate(() => window.__runStats);
+    check('paras yritys kirjautuu tulokseksi (100 %)', JSON.stringify(stats.speak) === '[100]' && stats.ended === 'complete', JSON.stringify(stats));
+  });
+
+  await runOn(fp, 'äänen johdonmukaisuus', async () => {
+    await fp.evaluate(async () => {
+      window.__spoken.length = 0;
+      window.__rates.length = 0;
+      const { runTasks } = await import(new URL('js/runner.js', document.baseURI).href);
+      const ctx = window.__englanti;
+      runTasks(ctx, document.querySelector('#view'), [{ kind: 'teach', item: ctx.catalog.byId.get('mail-01'), cta: 'Testaa itsesi' }], { title: 'Uutta' });
+    });
+    await fp.waitForSelector('.runner-box .phrase-row');
+    await fp.waitForFunction(() => window.__spoken.length >= 2, null, { timeout: 5000 });
+    await fp.waitForTimeout(200);
+    const phrase = "I'm writing to follow up on";
+    const example = "I'm writing to follow up on the invoice we sent on October third.";
+    const auto = await fp.evaluate(() => [...window.__spoken]);
+    check('automaattinen toisto: ilmaus ja sen jälkeen esimerkkilause', auto.length === 2 && auto[0] === phrase && auto[1] === example, JSON.stringify(auto));
+    check('opetus näyttää "Testaa itsesi" -painikkeen', /Testaa itsesi/.test(await fp.textContent('.runner-box .actions')));
+
+    await fp.evaluate(() => (window.__spoken.length = 0));
+    await fp.click('.runner-box .phrase-row .icon-btn.speak');
+    await fp.waitForFunction(() => window.__spoken.length >= 1);
+    check('ilmauksen kaiutin lukee vain ilmauksen', (await fp.evaluate(() => window.__spoken[0])) === phrase, await fp.evaluate(() => window.__spoken[0]));
+    await fp.waitForTimeout(200);
+
+    await fp.evaluate(() => (window.__spoken.length = 0));
+    await fp.click('.runner-box .example .icon-btn.speak');
+    await fp.waitForFunction(() => window.__spoken.length >= 1);
+    check('esimerkin kaiutin lukee vain esimerkkilauseen', (await fp.evaluate(() => window.__spoken[0])) === example, await fp.evaluate(() => window.__spoken[0]));
+    await fp.waitForTimeout(200);
+
+    await fp.evaluate(() => {
+      window.__spoken.length = 0;
+      window.__rates.length = 0;
+    });
+    await fp.click('.runner-box .example .btn.slow');
+    await fp.waitForFunction(() => window.__rates.length >= 1);
+    const slow = await fp.evaluate(() => ({ rate: window.__rates[0], text: window.__spoken[0] }));
+    check('esimerkin "Hitaasti" lukee saman lauseen hitaammin', slow.text === example && Math.abs(slow.rate - 0.595) < 0.001, JSON.stringify(slow));
+  });
+
+  const allProblems = [...problems, ...fresh.problems];
+  console.log('\nKonsoli- ja verkkovirheet:', allProblems.length ? '\n  ' + [...new Set(allProblems)].join('\n  ') : 'ei yhtään');
+  check('ei konsolivirheitä, CSP-rikkomuksia tai epäonnistuneita pyyntöjä', allProblems.length === 0, allProblems.join(' | '));
+  await fresh.browser.close();
   await browser.close();
   await srv.close();
   console.log(failures ? `\n${failures} epäonnistui` : '\nKaikki selaintestit läpi');

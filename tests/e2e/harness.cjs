@@ -59,12 +59,14 @@ const SPEECH_STUB = `
 (() => {
   const spoken = [];
   window.__spoken = spoken;
+  window.__rates = [];
   window.__asrQueue = [];
+  window.__asrDelay = 10;
   class Utt { constructor(text) { this.text = text; this.lang = ''; this.voice = null; this.rate = 1; } }
   const synth = {
     getVoices() { return [{ name: 'Stub US', lang: 'en-US', localService: true, voiceURI: 'stub-us', default: true }, { name: 'Stub UK', lang: 'en-GB', localService: false, voiceURI: 'stub-uk', default: false }]; },
     cancel() {},
-    speak(u) { spoken.push(u.text); setTimeout(() => { u.onstart && u.onstart({}); setTimeout(() => { u.onend && u.onend({}); }, 15); }, 5); },
+    speak(u) { spoken.push(u.text); window.__rates.push(u.rate); setTimeout(() => { u.onstart && u.onstart({}); setTimeout(() => { u.onend && u.onend({}); }, 15); }, 5); },
     addEventListener() {}, removeEventListener() {},
   };
   Object.defineProperty(window, 'speechSynthesis', { value: synth, configurable: true });
@@ -79,7 +81,7 @@ const SPEECH_STUB = `
         const alt = [{ transcript: t, confidence: 0.9 }];
         alt.isFinal = true;
         this.onresult && this.onresult({ results: [alt] });
-      }, 10);
+      }, window.__asrDelay);
     }
     abort() {} stop() {}
   }
@@ -94,7 +96,7 @@ window.__kind = () => {
   const box = document.querySelector('.runner-box');
   if (!box) return 'none';
   const eb = (box.querySelector('.eyebrow') || {}).textContent;
-  const map = { 'Uusi ilmaus': 'teach', 'Täydennä lause': 'choose', 'Muista merkitys': 'flip-rec', 'Sano englanniksi': 'flip-prod', 'Kirjoita englanniksi': 'flip-prod', 'Kuuntele ja toista': 'shadow' };
+  const map = { 'Uusi aihe': 'intro', 'Uusi ilmaus': 'teach', 'Täydennä lause': 'choose', 'Muista merkitys': 'flip-rec', 'Sano englanniksi': 'flip-prod', 'Kirjoita englanniksi': 'flip-prod', 'Kuuntele ja sano perässä': 'shadow' };
   return map[eb] || ('unknown:' + eb);
 };
 window.__sig = () => {

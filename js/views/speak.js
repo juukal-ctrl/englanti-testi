@@ -36,9 +36,9 @@ export async function mount(root, ctx) {
     h(
       'section',
       { class: 'card' },
-      h('h2', {}, 'Kuuntele ja toista'),
-      h('p', {}, 'Kuuntele malli ja toista se. Hyvä tapa harjoitella rytmiä ja painotusta.'),
-      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', on: { click: () => start('shadow', 'Kuuntele ja toista') } }, 'Aloita (5 lausetta)')),
+      h('h2', {}, 'Kuuntele ja sano perässä'),
+      h('p', {}, 'Kuuntele malli ja sano lause ääneen heti perässä, samalla rytmillä ja painotuksella. Tätä kutsutaan varjostukseksi (shadowing), ja se on tehokas tapa harjoitella sujuvaa puhetta.'),
+      h('div', { class: 'actions' }, h('button', { class: 'btn primary', type: 'button', on: { click: () => start('shadow', 'Kuuntele ja sano perässä') } }, 'Aloita (5 lausetta)')),
     ),
     h(
       'section',

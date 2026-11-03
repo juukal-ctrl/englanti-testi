@@ -10,15 +10,32 @@ Sovellus, sisältö ja koodi on tehty Clauden avulla.
 
 ## Mitä sovelluksessa on
 
-- **Päivän sessio (noin 15 min):** kertaus, uudet ilmaukset ja puheharjoitus peräkkäin.
+- **Päivän sessio (aikarajattu, oletus 15 min):** kertaus, uudet ilmaukset ja puheharjoitus. Katso [Päivän sessio](#päivän-sessio).
 - **Kertaus FSRS-6-ajastuksella:** ilmaukset palaavat juuri ennen unohtamista. Tavoitesäilyvyys 90 % (säädettävä).
-- **Harjoitustyypit:** aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen, kuuntele ja toista.
-- **Puhe:** selaimen oma puhesynteesi (kuuntele) ja puheentunnistus (sano). Tunnistus on apuväline, ei arvosana.
+- **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (shadowing).
+- **Puhe:** selaimen oma puhesynteesi (kuuntele, myös hitaasti) ja puheentunnistus (sano). Tunnistus on apuväline, ei arvosana. Numerot hyväksytään kaikissa muodoissa (`3`, `third`, `three`).
 - **Sanasto, edistyminen, asetukset** sekä JSON-varmuuskopion vienti ja tuonti.
 - **Offline:** koko sovellus välimuistitetaan (service worker) ja toimii ilman verkkoa.
 - **Laitetesti:** vaiheen 0 mittaussivu on tallessa osoitteessa `/laitetesti/`.
 
 Sisältö on tällä hetkellä 12 aihetta ja 126 ilmausta. Katso [CONTENT.md](CONTENT.md).
+
+## Päivän sessio
+
+Sessio on aikarajattu (asetus `sessionMinutes`, oletus 15 min) ja koostuu kolmesta osasta:
+
+1. **Kertaus** (enintään 45 % ajasta): erääntyneet kortit.
+2. **Uudet ilmaukset** ryhmissä (3 kerrallaan), kunnes aika tai päiväraja (`newMax`, oletus 12) tulee vastaan:
+   aiheen esittely (jos aiheesta ei ole vielä opittu mitään) → opetus ×3 (kuuntele, lue, sano ääneen) → testi ×3
+   (ensimmäinen arvosana ajastukselle) → tuottaminen ×3 (suomesta englanniksi, ei arvosanaa).
+   "Osaan tämän jo" kirjaa ilmauksen helpoksi (Easy) eikä kuluta päivän rajaa.
+3. **Puhe** (loppuaika, 3–8 lausetta): kuuntele ja sano perässä.
+
+Ryhmää ei aloiteta, ellei sille jää aikaa, eikä ryhmää keskeytetä kesken. Jos oppija etenee nopeasti, sessio päättyy
+suunnitelman loppuun; "15 min lisää" jatkaa uusilla ilmauksilla. Tänään-näkymä näyttää todellisen harjoitteluajan
+(yksittäinen tehtävä lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
+
+Ensimmäisinä kertoina ilmaus ei voi saada arvosanaa "Helppo", koska juuri nähty ei ole varmasti pitkäkestoista muistia.
 
 ## Kehitys
 
@@ -51,8 +68,9 @@ js/
   db.js           IndexedDB (muistivaraus), varmuuskopion vienti ja tuonti
   runner.js       tehtäväjono, aikaraja, virheiden palautus jonoon
   exercises.js    harjoitustyypit
-  speech.js       puhesynteesi ja puheentunnistus
-  match.js        puheen ja kirjoituksen täsmäys
+  speech.js       puhesynteesi (myös jono: ilmaus ja esimerkki) ja puheentunnistus
+  speakable.js    tekstin muokkaus äänentoistoa varten (päivämäärät järjestyslukuina, aukon merkit pois)
+  match.js        puheen ja kirjoituksen täsmäys (numerot yhtenäistetään: 3 = third = three)
   stats.js        edistymisluvut
   views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, sanasto, edistyminen, asetukset)
 data/units.js     sisältö (aiheet ja ilmaukset)

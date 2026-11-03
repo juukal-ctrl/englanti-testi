@@ -9,7 +9,7 @@ const LESSON_SIZE = 6;
 export async function mount(root, ctx, params = []) {
   if (params[0] === 'lesson') return runLesson(root, ctx, params[1]);
 
-  root.append(h('h1', {}, 'Oppitunti'), h('p', { class: 'muted' }, 'Valitse aihe. Jokainen oppitunti ottaa kerralla kuusi uutta ilmausta.'));
+  root.append(h('h1', {}, 'Oppitunti'), h('p', { class: 'muted' }, 'Valitse aihe. Jokainen oppitunti ottaa kerralla kuusi uutta ilmausta ja kestää noin 6 minuuttia.'));
   const isLearned = (id) => ctx.srs.isLearned(id);
   for (const unit of ctx.catalog.units) {
     const { total, learned } = unitProgress(unit, isLearned);
@@ -49,11 +49,10 @@ async function runLesson(root, ctx, unitId) {
   }
   const t0 = performance.now();
   (async () => {
-    const before = ctx.srs.introducedToday();
-    const st = await runTasks(ctx, root, newContentTasks(items), { title: ctx.catalog.unitById(unitId).title, signal: ac.signal });
+    const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: ctx.catalog.unitById(unitId).title, signal: ac.signal });
     if (ac.signal.aborted) return;
     if (st.ended === 'quit') return ctx.nav('lessons');
-    await renderSummary(root, ctx, { reviewed: st.graded, again: st.again, learned: Math.max(0, ctx.srs.introducedToday() - before), speak: [] }, performance.now() - t0, {
+    await renderSummary(root, ctx, { reviewed: 0, again: st.again, learned: st.taught, known: st.known, speak: st.speak }, performance.now() - t0, {
       title: 'Oppitunti valmis',
     });
   })();

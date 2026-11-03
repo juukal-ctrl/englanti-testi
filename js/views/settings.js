@@ -32,6 +32,16 @@ function select(ctx, key, id, options) {
   return sel;
 }
 
+/** Käytössä olevan sovelluskuoren tunniste (service workerin välimuistin nimestä), jotta päivityksen näkee. */
+async function buildId() {
+  try {
+    const key = (await caches.keys()).find((k) => k.startsWith('englanti-'));
+    return key ? key.slice('englanti-'.length) : '';
+  } catch {
+    return '';
+  }
+}
+
 export async function mount(root, ctx) {
   const s = ctx.settings();
   root.append(h('h1', {}, 'Asetukset'));
@@ -41,8 +51,13 @@ export async function mount(root, ctx) {
       'section',
       { class: 'card' },
       h('h2', {}, 'Oppiminen'),
-      field('Uusia ilmauksia päivässä', range(ctx, 'newPerDay', { id: 's-new', min: 0, max: 15, step: 1, format: (v) => String(v) }), 'Isompi määrä kasvattaa kertausten määrää parin viikon päästä.', 's-new'),
-      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), null, 's-min'),
+      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), 'Sessio täyttää tämän ajan: ensin kertaus, sitten uusia ilmauksia ja lopuksi puheharjoitus.', 's-min'),
+      field(
+        'Uusia ilmauksia päivässä (enintään)',
+        range(ctx, 'newMax', { id: 's-new', min: 0, max: 20, step: 1, format: (v) => String(v) }),
+        'Sessio ottaa uusia ilmauksia niin paljon kuin aikaan mahtuu, tähän määrään asti. Isompi määrä kasvattaa kertausten määrää parin viikon päästä.',
+        's-new',
+      ),
       field(
         'Tavoitesäilyvyys',
         range(ctx, 'retention', { id: 's-ret', min: 0.8, max: 0.95, step: 0.01, format: (v) => `${Math.round(v * 100)} %` }),
@@ -74,7 +89,7 @@ export async function mount(root, ctx) {
       h('h2', {}, 'Ääni ja puhe'),
       ttsSupported() ? null : h('p', { class: 'banner warn' }, 'Tällä selaimella ei ole puhesynteesiä.'),
       field('Ääni', h('div', { class: 'range-row' }, voiceSel, testBtn.el), 'Automaattinen valitsee parhaan englanninkielisen äänen. Laitteella toimiva ääni toimii myös ilman verkkoa.', 's-voice'),
-      field('Puhenopeus', range(ctx, 'rate', { id: 's-rate', min: 0.7, max: 1.2, step: 0.05, format: (v) => `${v.toFixed(2).replace('.', ',')} ×` }), null, 's-rate'),
+      field('Puhenopeus', range(ctx, 'rate', { id: 's-rate', min: 0.6, max: 1.2, step: 0.05, format: (v) => `${v.toFixed(2).replace('.', ',')} ×` }), 'Harjoituksissa on lisäksi "Hitaasti"-painike, joka lukee lauseen vielä hitaammin.', 's-rate'),
       toggle(ctx, 'autoplay', 's-auto', 'Toista ääni automaattisesti', 'Uuden ilmauksen ja vastauksen yhteydessä.'),
       h(
         'fieldset',
@@ -104,6 +119,7 @@ export async function mount(root, ctx) {
 
   // Tiedot
   const est = await ctx.db.estimate();
+  const build = await buildId();
   const fileInput = h('input', { type: 'file', accept: 'application/json,.json', id: 's-file', class: 'sr', tabindex: -1 });
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
@@ -173,6 +189,12 @@ export async function mount(root, ctx) {
       h('p', { class: 'help' }, 'Varmuuskopio sisältää oppimisdatan ja asetukset. Se ei sisällä API-avaimia. Ota varmuuskopio ennen kuin vaihdat puhelinta tai tyhjennät selaimen tietoja.'),
       h('div', { class: 'actions row wrap' }, exportBtn, h('button', { class: 'btn', type: 'button', on: { click: () => fileInput.click() } }, 'Tuo varmuuskopio'), fileInput),
       h('div', { class: 'actions' }, wipeBtn),
+    ),
+    h(
+      'section',
+      { class: 'card' },
+      h('h2', {}, 'Tietoja'),
+      h('p', { class: 'help', id: 'about' }, `Versio ${ctx.version}${build ? ` (${build})` : ''}. Sisältö: ${ctx.catalog.items.length} ilmausta, ${ctx.catalog.units.length} aihetta.`),
     ),
     h(
       'section',

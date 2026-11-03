@@ -2,20 +2,27 @@
 
 import { h, clear, shuffle } from './util.js';
 import { icon, progressBar, confirmDialog } from './ui.js';
-import { teach, choose, flipRec, flipProd, shadow } from './exercises.js';
+import { teach, unitIntro, choose, flipRec, flipProd, shadow } from './exercises.js';
 import { pickFormat } from './content.js';
+import { State } from './fsrs.js';
+
+/** Yhden tehtävän enintään laskettava aika: pitkä tauko ei ole harjoittelua. */
+export const IDLE_CAP_MS = 90000;
 
 /**
  * Suorittaa tehtävät järjestyksessä.
- * tehtävä = { kind: 'teach'|'review'|'test'|'shadow', item, atomic?, cta? }
- * Palauttaa { shown, graded, again, good, ms, speak:[pct], ended: 'complete'|'time'|'quit' }.
+ * tehtävä = { kind: 'intro'|'teach'|'test'|'produce'|'review'|'shadow', item, unit?, atomic?, cta? }
+ * Aikaraja (budgetMs) tarkistetaan vain ei-atomisten tehtävien alussa, joten ryhmä ei katkea kesken.
+ * reserveMs: uutta ei-atomista tehtävää ei aloiteta, jos sen jälkeen ei jäisi vähintään tämän verran aikaa.
+ * Palauttaa { shown, graded, again, good, ms, activeMs, taught, known, speak:[pct], ended: 'complete'|'time'|'quit' }.
  */
-export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, signal } = {}) {
-  const stats = { shown: 0, graded: 0, again: 0, good: 0, ms: 0, speak: [], ended: 'complete' };
+export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, reserveMs = 0, signal } = {}) {
+  const now = () => (ctx.now ? ctx.now() : performance.now());
+  const stats = { shown: 0, graded: 0, again: 0, good: 0, ms: 0, activeMs: 0, taught: 0, known: 0, speak: [], ended: 'complete' };
   const queue = tasks.map((t) => ({ ...t }));
   let total = queue.length;
   let done = 0;
-  const start = performance.now();
+  const start = now();
 
   const ac = new AbortController();
   signal?.addEventListener('abort', () => ac.abort(), { once: true });
@@ -62,9 +69,12 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, s
     const env = { ctx, signal: taskAc.signal, cta: task.cta };
     const item = task.item;
     try {
-      if (task.kind === 'teach') {
-        await teach(box, item, env);
+      if (task.kind === 'intro') {
+        await unitIntro(box, task.unit, env);
         return {};
+      }
+      if (task.kind === 'teach') {
+        return (await teach(box, item, env)) ?? {};
       }
       if (task.kind === 'shadow') {
         const res = await shadow(box, item, env);
@@ -79,6 +89,9 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, s
       const card = ctx.srs.card(item.id);
       const format = task.format ?? pickFormat(item, card);
       env.preview = ctx.srs.preview(item.id);
+      // Ensimmäisinä kertoina ei voi valita "Helppo": muistiin juuri painettu ei ole varmasti pitkäkestoista.
+      const early = !card || card.state === State.New || card.state === State.Learning || card.state === State.Relearning;
+      env.maxGrade = early ? 3 : 4;
       const exercise = format === 'choose' ? choose : format === 'flip-rec' ? flipRec : flipProd;
       const res = await exercise(box, item, env);
       await ctx.srs.grade(item.id, res.rating, { mode: format, ms: res.ms });
@@ -93,20 +106,38 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, s
       stats.ended = 'quit';
       break;
     }
-    if (!queue[0].atomic && performance.now() - start > budgetMs) {
+    if (!queue[0].atomic && now() - start + reserveMs > budgetMs) {
       stats.ended = 'time';
       break;
     }
     const task = queue.shift();
     paint();
     window.scrollTo(0, 0);
+    const t1 = now();
     const res = await Promise.race([runOne(task), quitPromise]);
+    const spent = now() - t1;
+    stats.activeMs += Math.min(spent, IDLE_CAP_MS);
     if (res?.quit) {
       stats.ended = 'quit';
       break;
     }
     done++;
     stats.shown++;
+    if (task.kind === 'teach') {
+      if (res.known) {
+        // "Osaan jo": ilmaus kirjataan helpoksi, eikä sille tehdä testejä tässä sessiossa.
+        await ctx.srs.grade(task.item.id, 4, { mode: 'known', ms: spent });
+        stats.known++;
+        for (let i = queue.length - 1; i >= 0; i--) {
+          if (queue[i].item?.id === task.item.id) {
+            queue.splice(i, 1);
+            total--;
+          }
+        }
+      } else {
+        stats.taught++;
+      }
+    }
     if (res.graded) {
       stats.graded++;
       stats.ms += res.ms ?? 0;
@@ -123,6 +154,7 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, s
     }
   }
   ac.abort();
+  await ctx.logActivity?.(stats.activeMs);
   return stats;
 }
 
@@ -136,15 +168,35 @@ export function reviewTasks(ctx, limit = 40) {
     .filter((t) => t.item);
 }
 
-/** Uudet ilmaukset kolmen ryhmissä: ensin opetus, sitten testaus sekoitetussa järjestyksessä. */
-export function newContentTasks(items, chunk = 3) {
+/**
+ * Uudet ilmaukset kolmen ryhmissä. Jokaisesta ryhmästä:
+ *  1. opetus (kuuntele, lue, sano ääneen),
+ *  2. testi sekoitetussa järjestyksessä (ensimmäinen arvosana ajastukselle),
+ *  3. tuottaminen: suomesta englanniksi sanoen tai kirjoittaen (harjoitus, ei arvosanaa).
+ * Aiheen ensimmäistä ilmausta edeltää lyhyt aiheen esittely, jos aiheesta ei ole vielä opittu mitään.
+ * Vain ryhmän ensimmäinen tehtävä on ei-atominen: aikaraja voi katkaista työn ryhmien välillä, ei kesken ryhmän.
+ */
+export function newContentTasks(ctx, items, chunk = 3) {
   const tasks = [];
+  const introduced = new Set();
   for (let i = 0; i < items.length; i += chunk) {
     const group = items.slice(i, i + chunk);
-    group.forEach((item, k) =>
-      tasks.push({ kind: 'teach', item, atomic: i > 0 || k > 0, cta: k === group.length - 1 ? 'Testaa itsesi' : 'Seuraava ilmaus' }),
-    );
-    shuffle(group).forEach((item) => tasks.push({ kind: 'test', item, atomic: true }));
+    let open = true; // ryhmän ensimmäinen tehtävä jää ei-atomiseksi
+    const push = (task) => {
+      tasks.push({ ...task, atomic: !open });
+      open = false;
+    };
+    group.forEach((item, k) => {
+      const unit = ctx.catalog.unitById(item.unitId);
+      const unitStarted = unit && unit.items.some((it) => ctx.srs.isLearned(it.id));
+      if (unit && !unitStarted && !introduced.has(unit.id)) {
+        introduced.add(unit.id);
+        push({ kind: 'intro', unit, item });
+      }
+      push({ kind: 'teach', item, cta: k === group.length - 1 ? 'Testaa itsesi' : 'Seuraava ilmaus' });
+    });
+    for (const item of shuffle(group)) push({ kind: 'test', item });
+    for (const item of shuffle(group)) push({ kind: 'produce', item });
   }
   return tasks;
 }

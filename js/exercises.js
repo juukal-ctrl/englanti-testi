@@ -1,5 +1,8 @@
 // Harjoitustyypit. Jokainen funktio piirtää itsensä `box`-elementtiin ja palauttaa Promisen,
-// joka ratkeaa, kun oppija on valmis. env = { ctx, signal, preview, cta }.
+// joka ratkeaa, kun oppija on valmis. env = { ctx, signal, preview, cta, maxGrade, practice }.
+//
+// Äänentoiston periaate: jokainen kaiutinpainike lukee sen tekstin, joka on sen vieressä (ilmaus tai esimerkkilause).
+// Automaattinen toisto lukee ilmauksen ja sen jälkeen esimerkkilauseen, aina samassa järjestyksessä.
 
 import { h, en, clear, shuffle } from './util.js';
 import { icon, speakButton, noteBox, reportLink, wordResult, announce, toast } from './ui.js';
@@ -17,9 +20,11 @@ const GRADES = [
 
 const eyebrow = (text) => h('p', { class: 'eyebrow' }, text);
 
-function gradeButtons(preview, pick, suggested = null) {
-  const wrap = h('div', { class: 'grades', role: 'group', 'aria-label': 'Miten sujui?' });
+/** Arvosanapainikkeet. maxGrade = 3 piilottaa "Helppo"-vaihtoehdon (ensimmäisillä kerroilla se ennustaisi liian pitkän välin). */
+function gradeButtons(preview, pick, suggested = null, { maxGrade = 4 } = {}) {
+  const wrap = h('div', { class: `grades${maxGrade < 4 ? ' three' : ''}`, role: 'group', 'aria-label': 'Miten sujui?' });
   for (const [g, label] of GRADES) {
+    if (g > maxGrade) continue;
     const b = h(
       'button',
       { class: `btn grade g${g}${suggested === g ? ' suggested' : ''}`, type: 'button', 'data-grade': g, on: { click: () => pick(g) } },
@@ -32,33 +37,47 @@ function gradeButtons(preview, pick, suggested = null) {
   return wrap;
 }
 
-/** Uusi ilmaus: näytetään merkitys, esimerkki ja huomautus. Ei arvosanaa. */
+/** Esimerkkilause kaiuttimineen ja "Hitaasti"-painikkeineen. */
+function exampleRow(item, ctx) {
+  const exBtn = speakButton(() => item.ex, ctx, { label: 'Kuuntele esimerkkilause', slow: true });
+  return { exBtn, el: h('div', { class: 'example' }, en(item.ex, 'p'), exBtn.el, exBtn.slowEl) };
+}
+
+/** Uusi aihe: lyhyt esittely ennen aiheen ensimmäistä ilmausta. */
+export function unitIntro(box, unit, env) {
+  return new Promise((resolve) => {
+    const go = h('button', { class: 'btn primary big', type: 'button', on: { click: () => resolve({}) } }, 'Aloitetaan');
+    clear(box).append(
+      eyebrow('Uusi aihe'),
+      h('h2', { class: 'unit-h' }, unit.title),
+      h('p', { class: 'meaning' }, unit.situation),
+      h('p', { class: 'muted' }, unit.intro),
+      h('div', { class: 'actions' }, go),
+    );
+    go.focus({ preventScroll: true });
+  });
+}
+
+/** Uusi ilmaus: näytetään merkitys, esimerkki ja huomautus. Ei arvosanaa. Palauttaa {} tai { known: true }. */
 export function teach(box, item, env) {
   const { ctx } = env;
   return new Promise((resolve) => {
-    const say = speakButton(() => item.say, ctx, { label: 'Kuuntele ilmaus' });
-    const exBtn = speakButton(() => item.ex, ctx, { label: 'Kuuntele esimerkkilause' });
-    const go = h(
-      'button',
-      {
-        class: 'btn primary big',
-        type: 'button',
-        on: {
-          click: () => {
-            stopSpeaking();
-            resolve({});
-          },
-        },
-      },
-      env.cta ?? 'Selvä',
-    );
+    const say = speakButton(() => item.en, ctx, { label: 'Kuuntele ilmaus', autoText: () => [item.en, item.ex] });
+    const { el: example } = exampleRow(item, ctx);
+    const done = (result) => {
+      stopSpeaking();
+      resolve(result);
+    };
+    const go = h('button', { class: 'btn primary big', type: 'button', on: { click: () => done({}) } }, env.cta ?? 'Selvä');
+    const known = h('button', { class: 'btn link', type: 'button', on: { click: () => done({ known: true }) } }, 'Osaan tämän jo');
     clear(box).append(
       eyebrow('Uusi ilmaus'),
       h('div', { class: 'phrase-row' }, en(item.en, 'h2', 'phrase'), say.el),
       h('p', { class: 'meaning' }, item.fi),
-      h('div', { class: 'example' }, en(item.ex, 'p'), exBtn.el),
+      example,
       noteBox(item),
-      h('div', { class: 'actions' }, go),
+      h('p', { class: 'hint' }, 'Sano ilmaus ääneen kerran ennen kuin jatkat.'),
+      h('div', { class: 'actions' }, go, known),
       h('p', { class: 'small-links' }, reportLink(item, ctx.version)),
     );
     go.focus({ preventScroll: true });
@@ -149,16 +168,17 @@ export function choose(box, item, env) {
   });
 }
 
+/** Vastaus kokonaisuudessaan: ilmaus, esimerkkilause ja huomautus. Automaattinen toisto lukee ilmauksen ja esimerkin. */
 function answerBlock(item, ctx) {
-  const say = speakButton(() => item.say, ctx, { label: 'Kuuntele ilmaus' });
-  const exBtn = speakButton(() => item.ex, ctx, { label: 'Kuuntele esimerkkilause' });
+  const say = speakButton(() => item.en, ctx, { label: 'Kuuntele ilmaus', autoText: () => [item.en, item.ex] });
+  const { el: example } = exampleRow(item, ctx);
   return {
     say,
     el: h(
       'div',
       { class: 'answer' },
       h('div', { class: 'phrase-row' }, en(item.en, 'h2', 'phrase'), say.el),
-      h('div', { class: 'example' }, en(item.ex, 'p'), exBtn.el),
+      example,
       noteBox(item),
       h('p', { class: 'small-links' }, reportLink(item, ctx.version)),
     ),
@@ -170,7 +190,7 @@ export function flipRec(box, item, env) {
   const { ctx, signal, preview } = env;
   const t0 = performance.now();
   return new Promise((resolve) => {
-    const say = speakButton(() => item.say, ctx, { label: 'Kuuntele ilmaus' });
+    const say = speakButton(() => item.en, ctx, { label: 'Kuuntele ilmaus' });
     const actions = h('div', { class: 'actions' });
     const stage = h('div', { class: 'stage' });
     let revealed = false;
@@ -178,18 +198,18 @@ export function flipRec(box, item, env) {
       if (revealed) return;
       revealed = true;
       const ms = performance.now() - t0;
-      const exBtn = speakButton(() => item.ex, ctx, { label: 'Kuuntele esimerkkilause' });
-      stage.append(
-        h('p', { class: 'meaning big' }, item.fi),
-        h('div', { class: 'example' }, en(item.ex, 'p'), exBtn.el),
-        noteBox(item),
-        h('p', { class: 'small-links' }, reportLink(item, ctx.version)),
-      );
+      const { el: example } = exampleRow(item, ctx);
+      stage.append(h('p', { class: 'meaning big' }, item.fi), example, noteBox(item), h('p', { class: 'small-links' }, reportLink(item, ctx.version)));
       clear(actions).append(
-        gradeButtons(preview, (g) => {
-          stopSpeaking();
-          resolve({ rating: g, ms });
-        }),
+        gradeButtons(
+          preview,
+          (g) => {
+            stopSpeaking();
+            resolve({ rating: g, ms });
+          },
+          null,
+          { maxGrade: env.maxGrade ?? 4 },
+        ),
       );
       announce(item.fi);
     };
@@ -214,7 +234,7 @@ export function flipRec(box, item, env) {
   });
 }
 
-/** Suomi → englanti. Oppija sanoo tai kirjoittaa vastauksen, jonka jälkeen arvioi itse. */
+/** Suomi → englanti. Oppija sanoo tai kirjoittaa vastauksen, jonka jälkeen arvioi itse (tai harjoittelutilassa vain jatkaa). */
 export function flipProd(box, item, env) {
   const { ctx, signal, preview } = env;
   const t0 = performance.now();
@@ -273,6 +293,7 @@ export function flipProd(box, item, env) {
               resolve({ rating: g, ms, attempt: attempt ? { pct: attempt.matchPct, mode } : null });
             },
             attempt ? suggestRating(attempt.matchPct) : null,
+            { maxGrade: env.maxGrade ?? 4 },
           ),
         );
       }
@@ -302,7 +323,7 @@ export function flipProd(box, item, env) {
         stopSpeaking();
         listening = true;
         micBtn.classList.add('listening');
-        micBtn.lastChild.textContent = 'Kuuntelen… (napauta lopettaaksesi)';
+        micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
         status.textContent = '';
         session = listen({ onInterim: (t) => (status.textContent = `Kuulin: ${t}`) });
         const res = await session.promise;
@@ -375,11 +396,14 @@ export function flipProd(box, item, env) {
   });
 }
 
-/** Puheharjoitus ilman arvosanaa: kuuntele malli ja toista. Palauttaa { pct } tai { skipped }. */
+/**
+ * Varjostus: kuuntele malli ja sano lause ääneen heti perässä samalla rytmillä ja painotuksella.
+ * Ei arvosanaa. Palauttaa { pct } tai { skipped }.
+ */
 export function shadow(box, item, env) {
   const { ctx } = env;
   return new Promise((resolve) => {
-    const say = speakButton(() => item.say, ctx, { label: 'Kuuntele malli' });
+    const say = speakButton(() => item.say, ctx, { label: 'Kuuntele malli', slow: true });
     const status = h('p', { class: 'attempt-status', role: 'status', 'aria-live': 'polite' });
     const resultBox = h('div', { class: 'result' });
     const actions = h('div', { class: 'actions' });
@@ -394,7 +418,7 @@ export function shadow(box, item, env) {
     };
 
     const micOk = asrSupported() && ctx.settings().speakMode === 'mic';
-    const micBtn = h('button', { class: 'btn mic big', type: 'button' }, icon('mic'), h('span', {}, 'Toista perässä'));
+    const micBtn = h('button', { class: 'btn mic big', type: 'button' }, icon('mic'), h('span', {}, 'Sano perässä'));
     micBtn.addEventListener('click', async () => {
       if (listening) {
         session?.abort();
@@ -402,19 +426,22 @@ export function shadow(box, item, env) {
       }
       stopSpeaking();
       listening = true;
+      micBtn.classList.remove('your-turn');
       micBtn.classList.add('listening');
-      micBtn.lastChild.textContent = 'Kuuntelen… (napauta lopettaaksesi)';
+      micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
+      status.textContent = '';
       session = listen({ onInterim: (t) => (status.textContent = `Kuulin: ${t}`) });
       const res = await session.promise;
       listening = false;
       micBtn.classList.remove('listening');
-      micBtn.lastChild.textContent = 'Toista perässä';
+      micBtn.lastChild.textContent = best == null ? 'Sano perässä' : 'Yritä uudelleen';
       if (res.error) {
         status.textContent = asrErrorText(res.error);
         return;
       }
       const cmp = compareToPhrase(item.say, res.transcript);
       best = Math.max(best ?? 0, cmp.matchPct);
+      micBtn.lastChild.textContent = 'Yritä uudelleen';
       status.textContent = '';
       clear(resultBox).append(h('p', { class: 'result-line' }, `Täsmäys ${cmp.matchPct} %`), wordResult(cmp));
       announce(`Täsmäys ${cmp.matchPct} prosenttia`);
@@ -424,16 +451,34 @@ export function shadow(box, item, env) {
     const skip = h('button', { class: 'btn link', type: 'button', on: { click: () => finish(true) } }, 'Ohita');
     actions.append(next, skip);
 
+    const steps = h(
+      'ol',
+      { class: 'steps' },
+      h('li', {}, 'Kuuntele malli kaiuttimesta.'),
+      h('li', {}, micOk ? 'Paina mikrofonia ja sano lause ääneen heti perässä, samalla rytmillä ja painotuksella.' : 'Sano lause ääneen heti kuulemasi perässä.'),
+      h('li', {}, micOk ? 'Katso, mitkä sanat tunnistettiin. Tunnistus on apuväline, ei arvosana: voit yrittää uudelleen.' : 'Jatka, kun olet sanonut sen.'),
+    );
+
     clear(box).append(
-      eyebrow('Kuuntele ja toista'),
+      eyebrow('Kuuntele ja sano perässä'),
       h('div', { class: 'phrase-row' }, en(item.say, 'h2', 'phrase'), say.el),
+      h('div', { class: 'slow-row' }, say.slowEl),
       h('p', { class: 'meaning' }, item.fi),
-      micOk ? micBtn : h('p', { class: 'muted' }, 'Mikrofoni ei ole käytössä: kuuntele malli ja sano lause ääneen itse.'),
+      steps,
+      micOk ? micBtn : h('p', { class: 'muted' }, 'Mikrofoni ei ole käytössä asetuksissa. Voit silti harjoitella sanomalla lauseen ääneen itse.'),
       status,
       resultBox,
       actions,
     );
-    if (ctx.settings().autoplay) say.play({ auto: true });
+    if (ctx.settings().autoplay) {
+      say.play({ auto: true }).then((res) => {
+        // Mallin jälkeen on oppijan vuoro: korostetaan mikrofonipainiketta.
+        if (micOk && res?.ok && res.kind === 'end' && !listening && best == null) {
+          micBtn.classList.add('your-turn');
+          if (!status.textContent) status.textContent = 'Sinun vuorosi: paina mikrofonia ja sano lause.';
+        }
+      });
+    }
   });
 }
 

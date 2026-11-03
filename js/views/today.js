@@ -18,10 +18,11 @@ export async function mount(root, ctx) {
   const totals = dayTotals(reviews, today);
   const meta = await ctx.db.getKv('meta', {});
   const last = await ctx.db.getKv('lastSession', null);
+  const activity = await ctx.db.getKv('activity', {});
   const doneToday = last?.day === today;
 
   const due = srs.due(today).length;
-  const allowedNew = Math.max(0, s.newPerDay - srs.introducedToday(today));
+  const allowedNew = Math.max(0, s.newMax - srs.introducedToday(today));
   const newAvailable = nextNewItems((id) => srs.isLearned(id), allowedNew).length;
   const sum = summarize([...srs.cards.values()], reviews, today);
 
@@ -64,14 +65,14 @@ export async function mount(root, ctx) {
 
   const plan = [];
   if (due > 0) plan.push(`Kertausta: ${plural(Math.min(due, 60), 'ilmaus', 'ilmausta')}`);
-  if (newAvailable > 0) plan.push(`Uutta: ${plural(newAvailable, 'ilmaus', 'ilmausta')}`);
-  plan.push('Puhetta: 4 lausetta');
+  if (newAvailable > 0) plan.push(`Uutta: enintään ${plural(newAvailable, 'ilmaus', 'ilmausta')}, sen mukaan kuin aikaa riittää`);
+  plan.push('Puhetta: loppuajan, 3–8 lausetta');
 
   const hero = h('section', { class: 'card hero', 'aria-labelledby': 'plan-h' });
   hero.append(h('h2', { id: 'plan-h' }, doneToday ? 'Päivän sessio on tehty' : `Päivän sessio · ${s.sessionMinutes} min`));
   if (doneToday) {
     hero.append(
-      h('p', {}, `Kertauksia tänään: ${totals.reviews}. Aktiivista aikaa ${fmtMinutes(totals.ms)}.`),
+      h('p', {}, `Harjoittelit tänään ${fmtMinutes(activity[today] ?? 0)}. Kertauksia ja testejä: ${totals.reviews}.`),
       h('div', { class: 'actions' }, h('a', { class: 'btn primary big', href: '#/session/extra' }, `${s.sessionMinutes} min lisää`)),
     );
   } else {
@@ -85,7 +86,7 @@ export async function mount(root, ctx) {
   const quick = h('div', { class: 'tiles' });
   quick.append(
     tile('#/review', 'Pelkkä kertaus', due ? `${due} erääntynyttä` : 'ei erääntyneitä'),
-    tile('#/speak', 'Puhu', 'kuuntele ja toista'),
+    tile('#/speak', 'Puhu', 'kuuntele ja sano perässä'),
     tile('#/lessons', 'Valitse aihe', `${ctx.catalog.units.length} aihetta`),
   );
   root.append(quick);

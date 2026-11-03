@@ -21,9 +21,9 @@ function makeSrs(startMs, overrides = {}) {
 
 test('asetusten siivous: oletukset, rajat ja tuntemattomat avaimet', () => {
   assert.deepEqual(sanitizeSettings(null), DEFAULT_SETTINGS);
-  const s = sanitizeSettings({ retention: 2, newPerDay: 3.6, theme: 'neon', rate: 'fast', evil: 1, aiModel: 'bad model!', clearText: true });
+  const s = sanitizeSettings({ retention: 2, newMax: 3.6, theme: 'neon', rate: 'fast', evil: 1, aiModel: 'bad model!', clearText: true });
   assert.equal(s.retention, 0.97);
-  assert.equal(s.newPerDay, 4);
+  assert.equal(s.newMax, 4);
   assert.equal(s.theme, 'auto');
   assert.equal(s.rate, DEFAULT_SETTINGS.rate);
   assert.equal(s.aiModel, DEFAULT_SETTINGS.aiModel);
@@ -98,7 +98,7 @@ test('varmuuskopio: vienti → tyhjennys → tuonti palauttaa tilan', async () =
   const { build } = makeSrs(at(2026, 11, 3));
   const srs = await build(db);
   for (const id of ['a', 'b', 'c']) await srs.grade(id, Rating.Good);
-  await db.setKv('settings', { ...DEFAULT_SETTINGS, newPerDay: 9 });
+  await db.setKv('settings', { ...DEFAULT_SETTINGS, newMax: 9 });
   const backup = await exportBackup(db, at(2026, 11, 3));
   assert.equal(backup.app, BACKUP_APP);
   assert.equal(backup.cards.length, 3);
@@ -109,7 +109,7 @@ test('varmuuskopio: vienti → tyhjennys → tuonti palauttaa tilan', async () =
   const fresh = await openDb({ memory: true });
   const res = await importBackup(fresh, wire);
   assert.deepEqual([res.cards, res.reviews], [3, 3]);
-  assert.equal((await fresh.getKv('settings')).newPerDay, 9);
+  assert.equal((await fresh.getKv('settings')).newMax, 9);
   assert.deepEqual((await fresh.getAllCards()).map((c) => c.id).sort(), ['a', 'b', 'c']);
 });
 

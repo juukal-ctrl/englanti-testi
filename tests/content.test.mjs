@@ -75,9 +75,9 @@ test('pickFormat: aukkotehtävä aluksi, tuottaminen kun muisti vahvistuu', () =
   assert.equal(pickFormat(withCloze, { state: State.Relearning, stability: 30, reps: 9 }), 'choose', 'unohdettu palaa helpompaan muotoon');
 });
 
-test('normalizeWords: pienet kirjaimet, lyhenteet ja luvut', () => {
+test('normalizeWords: pienet kirjaimet, lyhenteet ja luvut numeroina', () => {
   assert.deepEqual(normalizeWords("Thank you, I'm FINE!"), ['thank', 'you', 'i', 'am', 'fine']);
-  assert.deepEqual(normalizeWords("We’ve got 3 invoices"), ['we', 'have', 'got', 'three', 'invoices']);
+  assert.deepEqual(normalizeWords("We’ve got 3 invoices"), ['we', 'have', 'got', '3', 'invoices']);
   assert.deepEqual(normalizeWords("Can't, won't, let's"), ['cannot', 'will', 'not', 'let', 'us']);
   assert.deepEqual(normalizeWords(null), []);
 });
