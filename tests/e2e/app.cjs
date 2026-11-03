@@ -777,6 +777,9 @@ const dbState = (page) =>
     const pctOf = async () => Number(((await fp.textContent('.runner-box .result-line')).match(/(\d+) %/) ?? [])[1]);
 
     await attempt("I'm writing to follow up on the invoice we sent on October third", 900);
+    const preparing = (await fp.textContent('.runner-box .btn.mic')).trim();
+    check('mikrofonin avautuessa kerrotaan odotuksesta (ei vielä "puhu nyt")', /Avataan mikrofonia/.test(preparing), preparing);
+    await fp.waitForFunction(() => /Kuuntelen/.test(document.querySelector('.runner-box .btn.mic')?.textContent ?? ''), null, { timeout: 3000 });
     const look = await fp.evaluate(() => {
       const btn = document.querySelector('.runner-box .btn.mic');
       const cs = getComputedStyle(btn);

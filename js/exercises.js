@@ -323,9 +323,15 @@ export function flipProd(box, item, env) {
         stopSpeaking();
         listening = true;
         micBtn.classList.add('listening');
-        micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
+        micBtn.lastChild.textContent = 'Avataan mikrofonia…';
         status.textContent = '';
-        session = listen({ onInterim: (t) => (status.textContent = `Kuulin: ${t}`) });
+        session = listen({
+          // "Puhu nyt" vasta, kun mikrofoni on oikeasti auki: muuten ensimmäiset sanat voivat jäädä kuulematta.
+          onStart: () => {
+            if (listening) micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
+          },
+          onInterim: (t) => (status.textContent = `Kuulin: ${t}`),
+        });
         const res = await session.promise;
         listening = false;
         micBtn.classList.remove('listening');
@@ -428,9 +434,14 @@ export function shadow(box, item, env) {
       listening = true;
       micBtn.classList.remove('your-turn');
       micBtn.classList.add('listening');
-      micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
+      micBtn.lastChild.textContent = 'Avataan mikrofonia…';
       status.textContent = '';
-      session = listen({ onInterim: (t) => (status.textContent = `Kuulin: ${t}`) });
+      session = listen({
+        onStart: () => {
+          if (listening) micBtn.lastChild.textContent = 'Kuuntelen… puhu nyt';
+        },
+        onInterim: (t) => (status.textContent = `Kuulin: ${t}`),
+      });
       const res = await session.promise;
       listening = false;
       micBtn.classList.remove('listening');
