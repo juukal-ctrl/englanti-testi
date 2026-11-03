@@ -7,6 +7,8 @@ import { CATALOG } from './content.js';
 import { DEFAULT_SETTINGS, sanitizeSettings } from './settings.js';
 import { stopSpeaking } from './speech.js';
 import { loadManifest, clipStats } from './clips.js';
+import { createKeyStore } from './ai-keys.js';
+import { TIMEOUT_MS as AI_TIMEOUT_MS } from './ai.js';
 import { toast, icon } from './ui.js';
 import { APP_VERSION } from './version.js';
 import * as today from './views/today.js';
@@ -77,7 +79,10 @@ async function main() {
       location.hash = `#/${route}`;
     },
     persisted: null,
+    /** Tekoälypalautteen aikaraja (ms). Testit voivat pienentää sitä. */
+    aiTimeoutMs: AI_TIMEOUT_MS,
   };
+  ctx.aiKeys = createKeyStore(db, () => settings); // API-avaimet: muistissa, laitteelle vain pyydettäessä
   ctx.clipStats = clipStats; // toistetut ja puuttuvat äänileikkeet (testit, virheenjäljitys)
   window.__englanti = ctx; // testejä ja virheenjäljitystä varten
   loadManifest(); // esiäänitettyjen äänien luettelo valmiiksi ennen ensimmäistä toistoa

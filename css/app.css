@@ -1081,6 +1081,51 @@ details.model[open] > summary::after {
   display: none;
 }
 
+/* ---------- Tekoälypalaute ---------- */
+
+.ai-panel {
+  margin: 1.1rem 0 0.4rem;
+  border-top: 1px solid var(--line);
+}
+.ai-panel > h3 {
+  margin-top: 0.9rem;
+  scroll-margin-top: 0.75rem;
+}
+.ai-wait {
+  margin: 0.4rem 0;
+  font-weight: 600;
+}
+mark.hl.ai {
+  background: var(--accent-soft);
+  text-decoration: underline double var(--accent);
+  text-underline-offset: 0.2em;
+}
+ol.issues li.ai {
+  border-left-color: var(--accent);
+}
+details.tech {
+  margin: 0.4rem 0;
+}
+details.tech > summary {
+  cursor: pointer;
+  min-height: 2.75rem;
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+}
+.help.error {
+  color: var(--bad);
+  font-weight: 600;
+}
+.help.ok {
+  color: var(--good);
+  font-weight: 600;
+}
+.help.warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

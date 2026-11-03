@@ -15,6 +15,7 @@ Sovellus, sisältö ja koodi on tehty Clauden avulla.
 - **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (shadowing).
 - **Puhe:** esiäänitetty Kokoro-ääni (luonnollinen painotus, myös hitaasti; toimii ilman verkkoa, kun äänet on ladattu laitteelle), laitteen oma puhesynteesi varana sekä puheentunnistus (sano). Tunnistus on apuväline, ei arvosana. Numerot hyväksytään kaikissa muodoissa (`3`, `third`, `three`). Katso [Äänet](#äänet-kokoro).
 - **Kirjoita:** lyhyet työviestit englanniksi (sähköposti, pikaviesti). Palaute tulee heti laitteella, ilman verkkoa: sääntötarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus, suomenkieliset sanat), näyttää puuttuvat asiat ja harjoiteltavat ilmaukset sekä antaa kuunneltavan mallivastauksen. Katso [Kirjoita](#kirjoita).
+- **Tekoälypalaute (valinnainen):** Kirjoita-tehtävän palautteeseen voi pyytää lisäksi Geminin tai Clauden arvion omalla API-avaimella: korjausehdotukset suomeksi selitettyinä, korjattu versio ja vinkki. Pyyntö lähtee vain painikkeesta. Katso [Tekoälypalaute](#tekoälypalaute-valinnainen).
 - **Sanasto, edistyminen, asetukset** sekä JSON-varmuuskopion vienti ja tuonti.
 - **Offline:** koko sovellus välimuistitetaan (service worker) ja toimii ilman verkkoa.
 - **Laitetesti:** vaiheen 0 mittaussivu on tallessa osoitteessa `/laitetesti/`.
@@ -62,6 +63,34 @@ tällä laitteella. Ne eivät ole mukana varmuuskopiossa. Kirjoittamiseen käyte
 **Äänet:** mallivastausten ja saatujen viestien lauseet äänitetään samalla Kokoro-äänellä kuin muu sisältö
 (`tools/tts/texts.mjs` käyttää samaa lauseisiin jakoa kuin sovellus, `speechParts`).
 
+## Tekoälypalaute (valinnainen)
+
+Sääntötarkistus ei löydä esimerkiksi puuttuvia artikkeleita eikä arvioi sujuvuutta. Siksi palautekortissa on valinnainen
+"Pyydä tekoälypalaute" -painike, joka kysyy arvion Geminiltä (Google) tai Claudelta (Anthropic) **käyttäjän omalla API-avaimella**.
+Sovelluksella ei ole palvelinta: selain kutsuu palvelua suoraan (CSP sallii vain nämä kaksi osoitetta,
+`generativelanguage.googleapis.com` ja `api.anthropic.com`). Ilman avainta paneeli vain kertoo, miten sen saa käyttöön.
+
+- **Pyyntö lähtee vain painikkeesta**, ei "Tarkista"-painikkeesta. Mukana menevät tehtävän kuvaus, mahdollinen saatu viesti,
+  sisältökohdat ja oppijan teksti (`js/ai.js`: `buildUserMessage`). Oppijan teksti merkitään datana (`<learner_text>`), ja
+  järjestelmäohje kieltää sen sisältämien ohjeiden noudattamisen.
+- **Vastaus on JSONia**, jonka muoto tarkistetaan (`validateFeedback`). Jokainen huomio kohdistetaan oppijan tekstiin lainauksen
+  perusteella; jos lainausta ei löydy tekstistä (tekoäly keksi sen), huomio jätetään pois ja siitä kerrotaan. Näin korostukset
+  ovat aina oikeassa kohdassa. Selitykset ovat suomeksi, korjatut ilmaukset englanniksi.
+- **Ei tallennusta:** vastausta ei tallenneta eikä kirjata kirjoituslokiin (`ai`-kenttä pysyy `false`). Uusi "Tarkista" tai
+  näkymästä poistuminen keskeyttää käynnissä olevan pyynnön; pyynnön voi myös peruuttaa. Aikaraja on 40 s.
+- **Avain:** syötetään Asetukset → Tekoälypalaute. Oletuksena avain on vain tämän välilehden muistissa ja unohtuu sovelluksen
+  sulkeuduttua (`js/ai-keys.js`). "Muista avain tällä laitteella" tallentaa sen selaimen tietokantaan selkotekstinä; valinta ei
+  kulje varmuuskopion mukana. Avain lähetetään vain pyynnön otsakkeessa (`x-goog-api-key`, `x-api-key`), ei koskaan osoitteessa
+  tai rungossa, eikä pyynnön mukana kulje evästeitä tai lähettäjäosoitetta. Virheilmoituksista avain peitetään.
+- **Mallit:** oletukset ovat `gemini-3.5-flash-lite` ja `claude-haiku-5-5`. "Hae mallit" hakee palvelun nykyisen mallilistan, ja
+  mallin nimen voi vaihtaa. Koska mallien nimet vanhenevat, virhe "mallia ei löytynyt" ohjaa asetuksiin.
+- **Kustannus ja ehdot:** Gemini-avaimen maksuttomalla tasolla Google voi käyttää lähetettyjä tekstejä tuotekehitykseen, joten
+  sinne kirjoitetaan vain keksittyä tekstiä. Clauden käyttö laskutetaan erikseen Anthropic-tililtä.
+
+Testit: `tests/ai.test.mjs` (pyyntöjen muoto, vastausten purku, virheluokat, avaimen peittäminen, aikaraja ja peruutus
+valekutsulla) ja `tests/ai-keys.test.mjs` (avainten säilytys ja varmuuskopio). Selaintesti `tests/e2e/ai.cjs` ajaa asetusten
+kortin ja Kirjoita-paneelin Chromiumissa valepalveluilla (ei oikeita verkkopyyntöjä).
+
 ## Kehitys
 
 Ei koontivaihetta: sovellus on pelkkiä ES-moduuleja, joten tiedostoja voi muokata suoraan.
@@ -73,6 +102,9 @@ node --test tests/*.test.mjs
 # Selaintesti oikeassa Chromiumissa (tarvitsee Playwrightin). Kokoro-osio tarvitsee lisäksi python3:n, numpyn ja ffmpegin
 # (muuten se ohitetaan); se generoi testiäänet ja säilyttää ne kansiossa $E2E_AUDIO_DIR (oletus /tmp/e2e-fake-audio).
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/app.cjs
+
+# Pelkkä tekoälyosio (asetusten kortti ja Kirjoita-paneeli valepalveluilla; app.cjs ajaa saman osion mukanaan)
+NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/ai.cjs
 
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
 node tools/stamp.mjs
@@ -170,13 +202,16 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 - Oppimisdata (kortit, kertaushistoria, asetukset, kirjoitusluonnokset ja -yritysloki) tallentuu vain selaimen IndexedDB-tietokantaan.
   Varmuuskopio on käyttäjän oma JSON-tiedosto (kortit, kertaushistoria, asetukset), eikä se sisällä API-avaimia eikä kirjoitusluonnoksia.
-- Kirjoita-näkymän sääntötarkistus toimii kokonaan laitteella: kirjoittamaasi tekstiä ei lähetetä minnekään.
+- Kirjoita-näkymän sääntötarkistus toimii kokonaan laitteella: kirjoittamaasi tekstiä ei lähetetä minnekään. Poikkeus on
+  valinnainen tekoälypalaute, joka lähettää tekstin valitsemallesi palvelulle vasta, kun painat sen painiketta.
 - Puheentunnistus käyttää selaimen omaa tunnistusta. Kun laite on verkossa, Chrome voi lähettää äänen
   tunnistuspalveluunsa. Äänitallenteita ei tallenneta. Asetuksista voi valita kirjoittamisen mikrofonin sijaan.
 - Kaikki `juukal-ctrl.github.io`-osoitteen sivut jakavat saman selainympäristön (origin). Siksi mitään salaista ei
   tallenneta pysyvästi selaimeen.
-- Tulossa oleva tekoälypalaute lähettää vain käyttäjän kirjoittaman tekstin valitulle palveluntarjoajalle käyttäjän omalla
-  API-avaimella. Avainta ei tallenneta koodiin, varmuuskopioon eikä GitHubiin.
+- Tekoälypalaute käyttää käyttäjän omaa API-avainta. Avainta ei tallenneta koodiin, varmuuskopioon eikä GitHubiin, ja se pysyy
+  oletuksena vain välilehden muistissa. Jos sen tallentaa laitteelle ("Muista avain tällä laitteella"), se on selkotekstinä
+  samassa tallennustilassa kuin muu data, jonka kaikki samalla osoitteella julkaistut sivut voisivat lukea. Siksi suositus on
+  jättää valinta pois, ja jaetulla tai työlaitteella se kannattaa jättää pois aina.
 
 ## Lähteet
 

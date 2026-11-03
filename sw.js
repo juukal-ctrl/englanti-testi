@@ -2,7 +2,7 @@
 // Versio ja tiedostolista päivitetään komennolla `node tools/stamp.mjs` (testi varmistaa, että ne ovat ajan tasalla).
 
 // <generated>
-const VERSION = '39591aa22a';
+const VERSION = '3a2bee834b';
 const SHELL = [
   './',
   'css/app.css',
@@ -13,6 +13,8 @@ const SHELL = [
   'icons/icon-maskable-512.png',
   'icons/icon.svg',
   'index.html',
+  'js/ai-keys.js',
+  'js/ai.js',
   'js/app.js',
   'js/clips.js',
   'js/content.js',
@@ -34,10 +36,12 @@ const SHELL = [
   'js/views/progress.js',
   'js/views/review.js',
   'js/views/session.js',
+  'js/views/settings-ai.js',
   'js/views/settings.js',
   'js/views/speak.js',
   'js/views/today.js',
   'js/views/vocab.js',
+  'js/views/write-ai.js',
   'js/views/write-feedback.js',
   'js/views/write.js',
   'js/writing-rules.js',

@@ -3,6 +3,7 @@
 // Kuvat: E2E_OUT=<hakemisto> (oletus /tmp/e2e-out).
 
 const { serve, launch } = require('./harness.cjs');
+const { runAiTests } = require('./ai.cjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -685,6 +686,9 @@ const dbState = (page) =>
     await shot(page, '64-kirjoita-lista-tehtyja', { fullPage: true });
   });
 
+  /* ===== 6c. Tekoälypalaute (valepalveluilla, oma selain) ===== */
+  await run('tekoälypalaute', () => runAiTests({ base, check, out: OUT }));
+
   /* ===== 7. Edistyminen ja Lisää ===== */
   await run('edistyminen', async () => {
     await navTo(page, 'more');
@@ -711,7 +715,7 @@ const dbState = (page) =>
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.4\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.5\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');

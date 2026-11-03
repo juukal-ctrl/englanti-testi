@@ -112,9 +112,9 @@ export function renderModelCard(task, ctx, { onWrite }) {
 
 /**
  * Koko palautekortti. Palauttaa elementin; actions-kentät ovat kutsujan hoidettavia.
- * opts: { ctx, onRevise, onDone, nextHref }
+ * opts: { ctx, onRevise, onDone, nextHref, aiPanel } (aiPanel: valinnainen tekoälypalautteen elementti)
  */
-export function renderFeedback(task, text, result, { ctx, onRevise, onDone, nextHref }) {
+export function renderFeedback(task, text, result, { ctx, onRevise, onDone, nextHref, aiPanel = null }) {
   const verdict = verdictOf(result);
   const strengths = strengthsOf(task, result);
   const lengthLabel = result.length === 'short' ? 'liian lyhyt' : result.length === 'long' ? 'liian pitkä' : 'sopiva';
@@ -175,7 +175,7 @@ export function renderFeedback(task, text, result, { ctx, onRevise, onDone, next
       'Tämä tarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus). Se ei arvioi tekstin sujuvuutta kokonaisuutena eikä löydä esimerkiksi puuttuvia artikkeleita.',
     ),
     modelBox,
-    h('div', { class: 'ai-slot', id: 'w-ai' }),
+    h('div', { class: 'ai-slot', id: 'w-ai' }, aiPanel),
     h('div', { class: 'actions' }, reviseBtn, doneBtn, nextLink),
   );
   return card;

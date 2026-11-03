@@ -6,6 +6,7 @@ import { WRITING_TASKS } from '../../data/writing.js';
 import { checkWriting, countWords, isClean, speechParts } from '../writing.js';
 import { speakButton, toast, announce, confirmDialog } from '../ui.js';
 import { renderFeedback, renderModelCard, verdictOf } from './write-feedback.js';
+import { createAiPanel } from './write-ai.js';
 
 export const TASKS = WRITING_TASKS;
 const BY_ID = new Map(TASKS.map((t) => [t.id, t]));
@@ -180,6 +181,7 @@ async function mountTask(root, ctx, task) {
   const counter = h('p', { id: 'w-count', class: 'counter' });
   const out = h('div', { id: 'w-result' });
   let checked = null; // viimeksi tarkistettu teksti
+  let aiPanel = null; // tekoälypalautteen paneeli (valinnainen), sidottu viimeksi tarkistettuun tekstiin
 
   const updateCount = () => {
     const n = countWords(ta.value);
@@ -248,12 +250,15 @@ async function mountTask(root, ctx, task) {
     saveDraft();
     const result = checkWriting(task, text);
     checked = text;
+    aiPanel?.destroy(); // keskeyttää vanhaan tekstiin liittyvän pyynnön
+    aiPanel = createAiPanel({ ctx, task, text });
     showFeedback(
       renderFeedback(task, text, result, {
         ctx,
         onRevise: focusText,
         onDone: () => finish(result),
         nextHref: following ? `#/write/${following.id}` : null,
+        aiPanel: aiPanel.el,
       }),
     );
     announce(verdictOf(result).text);
@@ -262,6 +267,8 @@ async function mountTask(root, ctx, task) {
 
   const showModel = () => {
     touch();
+    aiPanel?.destroy();
+    aiPanel = null;
     showFeedback(renderModelCard(task, ctx, { onWrite: focusText }));
   };
 
@@ -350,6 +357,7 @@ async function mountTask(root, ctx, task) {
 
   return {
     destroy() {
+      aiPanel?.destroy();
       saveDraft();
       flushActivity();
       root.removeEventListener('pointerdown', activeTouch);

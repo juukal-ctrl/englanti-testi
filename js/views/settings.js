@@ -6,6 +6,7 @@ import { clipSummary, prefetchAll } from '../clips.js';
 import { VOICE_TEST_TEXT } from '../speakable.js';
 import { DEFAULT_SETTINGS } from '../settings.js';
 import { WRITING_TASKS } from '../../data/writing.js';
+import { aiCard } from './settings-ai.js';
 
 const MAX_IMPORT_BYTES = 30 * 1024 * 1024;
 
@@ -45,7 +46,7 @@ async function buildId() {
   }
 }
 
-export async function mount(root, ctx) {
+export async function mount(root, ctx, params = []) {
   const s = ctx.settings();
   root.append(h('h1', {}, 'Asetukset'));
 
@@ -154,6 +155,10 @@ export async function mount(root, ctx) {
     ),
   );
 
+  // Tekoälypalaute (valinnainen, oma API-avain)
+  const ai = aiCard(ctx);
+  root.append(ai.el);
+
   // Tiedot
   const est = await ctx.db.estimate();
   const build = await buildId();
@@ -212,6 +217,7 @@ export async function mount(root, ctx) {
       danger: true,
     });
     if (!ok) return;
+    await ctx.aiKeys.forget(); // ensin muisti ja laite; reset tyhjentää tietokannan kokonaan
     await ctx.srs.reset();
     await ctx.reloadSettings();
     toast('Kaikki tiedot on poistettu.');
@@ -245,6 +251,7 @@ export async function mount(root, ctx) {
           on: {
             click: async () => {
               await ctx.saveSettings({ ...DEFAULT_SETTINGS });
+              await ctx.aiKeys.setRemember(false); // oletuksena avaimia ei säilytetä laitteella
               location.reload();
             },
           },
@@ -253,5 +260,12 @@ export async function mount(root, ctx) {
       ),
     ),
   );
-  return {};
+  // Linkki #/settings/ai vie suoraan tekoälykorttiin. Reititin palauttaa vierityksen alkuun vasta tämän jälkeen.
+  if (params[0] === 'ai') {
+    setTimeout(() => {
+      ai.el.scrollIntoView({ block: 'start' });
+      ai.heading.focus({ preventScroll: true });
+    }, 0);
+  }
+  return { destroy: () => ai.destroy() };
 }

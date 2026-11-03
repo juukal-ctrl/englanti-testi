@@ -149,6 +149,7 @@ function memoryBackend(reason = null) {
       cards.clear();
       for (const c of newCards) cards.set(c.id, { ...c });
       reviews = newReviews.map((r) => ({ ...r }));
+      if (newKv === undefined) return; // kv jätetään ennalleen
       kv.clear();
       for (const [k, v] of Object.entries(newKv ?? {})) kv.set(k, structuredClone(v));
     },
@@ -222,7 +223,7 @@ function idbBackend(db) {
       const tx = db.transaction(['cards', 'reviews', 'kv'], 'readwrite');
       tx.objectStore('cards').clear();
       tx.objectStore('reviews').clear();
-      tx.objectStore('kv').clear();
+      if (kv !== undefined) tx.objectStore('kv').clear(); // kv jätetään ennalleen, jos sitä ei anneta
       for (const c of cards) tx.objectStore('cards').put(c);
       for (const r of reviews) tx.objectStore('reviews').add(r);
       for (const [k, v] of Object.entries(kv ?? {})) tx.objectStore('kv').put(v, k);
@@ -259,7 +260,7 @@ export async function exportBackup(db, now = Date.now()) {
     schema: BACKUP_SCHEMA,
     exportedAt: new Date(now).toISOString(),
     note: 'Tämä tiedosto sisältää vain oppimisdatasi ja asetukset. API-avaimia ei viedä.',
-    settings: sanitizeSettings(settings),
+    settings: { ...sanitizeSettings(settings), rememberKey: false }, // avainten säilytys on laitekohtainen valinta
     cards,
     reviews,
   };
@@ -273,7 +274,7 @@ export async function importBackup(db, data, { mode = 'replace' } = {}) {
   const v = validateBackup(data);
   if (!v.ok) throw new Error(v.errors.join('. '));
   if (mode === 'replace') {
-    await db.replaceAll({ cards: v.cards, reviews: v.reviews, kv: { settings: v.settings } });
+    await db.replaceAll({ cards: v.cards, reviews: v.reviews, kv: { settings: { ...v.settings, rememberKey: false } } });
     return { cards: v.cards.length, reviews: v.reviews.length, skipped: v.skippedCards + v.skippedReviews };
   }
   const [curCards, curReviews, curSettings] = await Promise.all([db.getAllCards(), db.getAllReviews(), db.getKv('settings', null)]);
@@ -282,10 +283,8 @@ export async function importBackup(db, data, { mode = 'replace' } = {}) {
   const key = (r) => `${r.cardId}|${r.ts}`;
   const have = new Set(curReviews.map(key));
   const added = v.reviews.filter((r) => !have.has(key(r)));
-  await db.replaceAll({
-    cards: [...byId.values()],
-    reviews: [...curReviews, ...added],
-    kv: { settings: curSettings ? sanitizeSettings(curSettings) : v.settings },
-  });
+  // Yhdistäminen säilyttää nykyiset asetukset ja muun paikallisen tiedon (kirjoitusloki, luonnokset, päivän aika, avaimet).
+  await db.replaceAll({ cards: [...byId.values()], reviews: [...curReviews, ...added] });
+  if (!curSettings) await db.setKv('settings', { ...v.settings, rememberKey: false });
   return { cards: byId.size, reviews: curReviews.length + added.length, skipped: v.skippedCards + v.skippedReviews };
 }
