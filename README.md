@@ -45,7 +45,8 @@ Ei koontivaihetta: sovellus on pelkkiä ES-moduuleja, joten tiedostoja voi muoka
 # Yksikkötestit (FSRS, tallennus, sisältö, täsmäys, service workerin tuoreus)
 node --test tests/*.test.mjs
 
-# Selaintesti oikeassa Chromiumissa (tarvitsee Playwrightin)
+# Selaintesti oikeassa Chromiumissa (tarvitsee Playwrightin). Kokoro-osio tarvitsee lisäksi python3:n, numpyn ja ffmpegin
+# (muuten se ohitetaan); se generoi testiäänet ja säilyttää ne kansiossa $E2E_AUDIO_DIR (oletus /tmp/e2e-fake-audio).
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/app.cjs
 
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
