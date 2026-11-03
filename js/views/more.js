@@ -22,6 +22,7 @@ export function mount(root, ctx) {
       ),
       h('p', {}, h('a', { href: 'laitetesti/' }, 'Laitetesti'), ' · ', h('a', { href: 'https://github.com/juukal-ctrl/englanti-testi', target: '_blank', rel: 'noopener noreferrer' }, 'Lähdekoodi (GitHub)')),
       h('p', { class: 'muted' }, 'Kuvakkeet: Material Design Icons, Apache-lisenssi 2.0.'),
+      h('p', { class: 'muted' }, 'Englanninkieliset äänet: Kokoro-82M (ääni af_heart), Apache-lisenssi 2.0. Äänet on tehty etukäteen, eikä malli toimi laitteellasi.'),
     ),
   );
   return {};

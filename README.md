@@ -153,3 +153,7 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 - FSRS-algoritmi: [open-spaced-repetition](https://github.com/open-spaced-repetition) (FSRS-6, oletuspainot).
 - Kuvakkeet: Material Design Icons, Apache-lisenssi 2.0.
+- Äänet: [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-lisenssi 2.0; mallin kuvauksen mukaan koulutettu pelkästään
+  sallitulla tai tekijänoikeudettomalla äänidatalla). Generointi käyttää Actionsissa kirjastoja kokoro ja misaki (Apache 2.0),
+  espeak-ng:tä (GPL, vain työkaluna ääntämisen varasanakirjana) ja ffmpegiä (Opus-koodaus). Sovelluksen mukana jaetaan vain
+  valmiit äänitiedostot, ei näiden työkalujen koodia.
