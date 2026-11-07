@@ -11,6 +11,7 @@ import { createKeyStore } from './ai-keys.js';
 import { TIMEOUT_MS as AI_TIMEOUT_MS } from './ai.js';
 import { toast, icon } from './ui.js';
 import { APP_VERSION } from './version.js';
+import { normalizeHash, planNav, stackAfter, validStack } from './nav.js';
 import * as today from './views/today.js';
 import * as session from './views/session.js';
 import * as review from './views/review.js';
@@ -92,9 +93,8 @@ async function main() {
       for (const key of Object.keys(log)) if (Number(key) < day - 120) delete log[key];
       await db.setKv('activity', log);
     },
-    nav: (route) => {
-      location.hash = `#/${route}`;
-    },
+    /** Siirtyy reitille (esim. 'today'). Historiaa hoitaa go(): ylöspäin palataan, vierekkäinen näkymä korvataan. */
+    nav: (route) => go(`#/${route}`),
     persisted: null,
     /** Tekoälypalautteen aikaraja (ms). Testit voivat pienentää sitä. */
     aiTimeoutMs: AI_TIMEOUT_MS,
@@ -117,6 +117,75 @@ async function main() {
     if (ctx.persisted === false) ctx.persisted = (await navigator.storage?.persist?.()) ?? false;
   } catch {
     ctx.persisted = null;
+  }
+
+  // Reittipino ja selainhistoria (ks. nav.js): takaisin palaa aina loogisesti ylempään näkymään.
+  let stack = []; // nykyisen historiamerkinnän reittipino (kopio history.state.stack:sta)
+  let pending = null; // käynnissä oleva paluu (history.go): { hash, next, timer }
+  let lastKey = ''; // viimeksi käsitelty merkintä, jotta popstate ja hashchange eivät piirrä samaa siirtymää kahdesti
+  const keyOf = (hash, st) => `${hash}|${st.join(',')}`;
+  const settle = (st, hash) => {
+    stack = st;
+    lastKey = keyOf(normalizeHash(hash), st);
+  };
+  {
+    const first = normalizeHash(location.hash);
+    const saved = history.state?.stack;
+    stack = validStack(saved, first) ? saved : [first]; // sivun uudelleenlataus säilyttää pinon
+    history.replaceState({ stack }, '');
+    lastKey = keyOf(first, stack);
+  }
+
+  /** Siirtyy osoitteeseen: syvemmälle lisätään merkintä, samalle tasolle korvataan, ylemmälle palataan. */
+  function go(target) {
+    if (pending) return; // edellinen paluu on vielä kesken (esim. tuplanapautus): älä palaa kahta askelta
+    const to = normalizeHash(target);
+    const plan = planNav(stack, to);
+    if (plan.kind === 'same') {
+      render(); // sama näkymä uudelleen alusta (esim. Puhu-välilehti yhteenvedon aikana)
+      return;
+    }
+    if (plan.kind === 'pop') {
+      const p = { hash: to, next: plan.next, timer: 0 };
+      // Jos selain ei siirry (historia on katkennut), korvataan nykyinen merkintä eikä jäädä odottamaan.
+      p.timer = setTimeout(() => {
+        if (pending !== p) return;
+        pending = null;
+        history.replaceState({ stack: p.next }, '', p.hash);
+        settle(p.next, p.hash);
+        render();
+      }, 1500);
+      pending = p;
+      history.go(-plan.pops);
+      return;
+    }
+    if (plan.kind === 'push') history.pushState({ stack: plan.next }, '', to);
+    else history.replaceState({ stack: plan.next }, '', to);
+    settle(plan.next, to);
+    render();
+  }
+
+  /** Selain siirtyi historiassa itse (takaisin-ele, eteenpäin, osoitteen muutos) tai go() odotti paluuta. */
+  function onTraverse() {
+    if (pending) {
+      const p = pending;
+      pending = null;
+      clearTimeout(p.timer);
+      history.replaceState({ stack: p.next }, '', p.hash); // saapunut merkintä muuttuu tarvittaessa kohteeksi
+      settle(p.next, p.hash);
+      render();
+      return;
+    }
+    const here = normalizeHash(location.hash);
+    const saved = history.state?.stack;
+    const known = validStack(saved, here);
+    const next = known ? saved : stackAfter(stack, here); // tuntematon merkintä (osoite kirjoitettu käsin): päättele pino
+    if (!known) history.replaceState({ stack: next }, '');
+    const key = keyOf(here, next);
+    if (key === lastKey) return;
+    stack = next;
+    lastKey = key;
+    render();
   }
 
   let token = 0;
@@ -153,7 +222,8 @@ async function main() {
     firstRender = false;
     document.documentElement.dataset.ready = '1'; // käynnistysvahti (boot-guard.js) tietää, että sovellus on käynnissä
   };
-  window.addEventListener('hashchange', render);
+  window.addEventListener('popstate', onTraverse);
+  window.addEventListener('hashchange', onTraverse);
   window.addEventListener('pagehide', stopSpeaking);
   document.addEventListener('click', (e) => {
     const a = e.target instanceof Element ? e.target.closest('a[href^="#"]') : null;
@@ -163,10 +233,10 @@ async function main() {
       // "Siirry sisältöön" -linkki ei saa muuttaa reittiä (hash-reititin).
       e.preventDefault();
       $('#main')?.focus();
-    } else if (href === location.hash) {
-      // Sama osoite uudelleen (esim. Puhu-välilehti yhteenvedon aikana): piirretään näkymä alusta.
+    } else if (href.startsWith('#/')) {
+      // Kaikki sovelluksen sisäiset linkit kulkevat go():n kautta, jotta historia pysyy matalana.
       e.preventDefault();
-      render();
+      go(href);
     }
   });
   await render();

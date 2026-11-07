@@ -7,6 +7,7 @@ const { runAiTests } = require('./ai.cjs');
 const { runSessionTests } = require('./session.cjs');
 const { runInstallTests } = require('./install.cjs');
 const { runShadowTests } = require('./shadow.cjs');
+const { runBackTests } = require('./back.cjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -457,6 +458,8 @@ const dbState = (page) =>
     check('malli saa vihreän "Hyvä!"-palautteen', (await page.locator('#w-feedback .verdict.ok').count()) === 1 && /Sisältökohdat\s*3 \/ 3/.test(fb2) && /Harjoiteltavat ilmaukset\s*3 \/ 3/.test(fb2) && (await page.locator('#w-feedback mark.hl').count()) === 0, fb2.slice(0, 300));
     check('virheettömässä palautteessa ei vanhentumisilmoitusta', (await page.locator('#w-feedback .stale').count()) === 0);
 
+    // Kirjaus tehdään jonossa palautteen näyttämisen jälkeen: odotetaan, että molemmat merkinnät ovat tallessa.
+    await poll(page, async () => (await window.__englanti.db.getKv('writeLog', [])).length >= 2, null);
     const log = await kv('writeLog', []);
     check('molemmat yritykset kirjautuvat lokiin', log.length === 2 && log[0].errors === 1 && log[0].tips === 1 && log[0].clean === false && log[1].clean === true && log.every((e) => e.id === 'w-followup' && e.ai === false), JSON.stringify(log));
     await waitDraft('w-followup', data.model);
@@ -576,6 +579,9 @@ const dbState = (page) =>
   /* ===== 6f. Shadowing: toinen oppitunti (kappaleet, kertaus, nauhoitus, asetukset) ===== */
   await run('shadowing', () => runShadowTests({ base, check, out: OUT }));
 
+  /* ===== 6g. Takaisin-painike: historia pysyy matalana (välilehdet, alisivut, Takaisin, Valmis, uudelleenlataus) ===== */
+  await run('takaisin', () => runBackTests({ base, check }));
+
   /* ===== 7. Edistyminen ja Lisää ===== */
   await run('edistyminen', async () => {
     await navTo(page, 'more');
@@ -601,8 +607,10 @@ const dbState = (page) =>
     await noGarbage(page, 'Asetukset');
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
+    // Versio luetaan js/version.js:stä, jotta versionnosto ei riko testiä.
+    const appVersion = (fs.readFileSync(path.join(__dirname, '..', '..', 'js', 'version.js'), 'utf8').match(/APP_VERSION = '([^']+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.7\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää, 24 shadowing-kappaletta\\.`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio ${appVersion.replace(/\./g, '\\.')} \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää, 24 shadowing-kappaletta\\.`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');

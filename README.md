@@ -219,6 +219,9 @@ NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e
 # Pelkkä shadowing (Tänään-kortti, koko oppitunti valemikrofonilla, kertaus, keskeytys, mikrofonin esto, asetukset; app.cjs ajaa saman osion mukanaan)
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/shadow.cjs
 
+# Pelkkä takaisin-painike (välilehdet, alisivut, Takaisin, Valmis, uudelleenlataus, tuplanapautus; app.cjs ajaa saman osion mukanaan)
+NODE_PATH=/usr/local/lib/node_modules_global node tests/e2e/back.cjs
+
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
 node tools/stamp.mjs
 ```
@@ -233,7 +236,8 @@ varaan. Yksikkötesti `tests/stamp.test.mjs` epäonnistuu, jos leimaus on jään
 index.html, manifest.webmanifest, sw.js   sovelluskuori ja offline-välimuisti
 css/app.css                               ulkoasu (vaalea ja tumma teema, mobiili ensin)
 js/
-  app.js          käynnistys, reititin (#/today, #/review, …), asetusten käyttöönotto
+  app.js          käynnistys, reititin (#/today, #/review, …) ja historian hoito (go), asetusten käyttöönotto
+  nav.js          älykäs takaisin (puhdas moduuli): näkymien tasot ja reittipino, mitä historialle tehdään siirryttäessä
   fsrs.js         FSRS-6 (21 painoa, Anki-oletukset), verrattu riippumattomaan Python-toteutukseen
   srs.js          kortit, kirjaus, erääntyvien jono
   db.js           IndexedDB (muistivaraus), varmuuskopion vienti ja tuonti
@@ -310,6 +314,25 @@ tehdään automaattisesti uudelleen. Korvaukseksi kelpaa myös oma ääntämys m
 `{ "\\bPO\\b": "[PO](/pˌiˈO/)" }`. Foneemit kirjoitetaan misakin amerikanenglannin merkinnällä: `A` = eɪ, `I` = aɪ,
 `O` = oʊ, `W` = aʊ, `Y` = ɔɪ, `ʤ` = dʒ, `ʧ` = tʃ, `T` = r-äänteinen t (flap); `ˈ` on pääpaino ja `ˌ` sivupaino.
 Mallin lukutapa selviää ajon jälkeen tiedostosta `phonemes.tsv` (haara `kokoro-log`).
+
+## Navigointi ja takaisin-painike
+
+Sovellus on hash-reititetty (`#/today`, `#/review`, …), ja järjestelmän takaisin-painike (Androidin ele) kulkee selainhistoriassa.
+Jotta se ei kävisi läpi kaikkia aiemmin avattuja näkymiä, historia pidetään matalana (`js/nav.js`, puhdas moduuli; yksikkötestit
+`tests/nav.test.mjs`, selaintesti `tests/e2e/back.cjs`):
+
+- Jokaisella näkymällä on taso: Tänään 0; välilehdet (Kertaus, Oppitunti, Puhu, Lisää), Kirjoita-lista, päivän sessio ja
+  shadowing 1; oppitunti, sanasto, edistyminen, asetukset, asennus ja yksittäinen kirjoitustehtävä 2; asetusten alisivu 3.
+- Historiassa on korkeintaan yksi merkintä kutakin tasoa kohti. Tämä reittipino tallennetaan historiamerkinnän tilaan
+  (`history.state`), joten se säilyy sivun uudelleenlatauksessa.
+- Siirtyminen syvemmälle lisää merkinnän, samalle tasolle korvaa nykyisen merkinnän (välilehden vaihto ei kasvata historiaa)
+  ja ylemmälle tasolle palaa jo olemassa olevaan merkintään (`history.go`). "‹ Takaisin", "Valmis", ✕ ja alavalikon Tänään
+  eivät siis lisää mitään.
+- Tulos: takaisin palaa aina loogisesti ylempään näkymään, Tänään-näkymästä se poistuu sovelluksesta, eikä mikään polku vaadi
+  yli neljää painallusta. Tuplanapautus ei vie kahta askelta taaksepäin, ja suoraan alisivulle avattu sovellus ei yritä
+  palata olemattomiin merkintöihin.
+- Kaikki sovelluksen sisäiset linkit ja `ctx.nav()` kulkevat `go()`:n (`js/app.js`) kautta. Kun käyttäjä vaihtaa osoitteen
+  käsin, pino päätellään samoilla säännöillä.
 
 ## Asennus ja vianetsintä
 
