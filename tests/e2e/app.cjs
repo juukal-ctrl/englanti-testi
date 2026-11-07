@@ -5,6 +5,7 @@
 const { serve, launch } = require('./harness.cjs');
 const { runAiTests } = require('./ai.cjs');
 const { runSessionTests } = require('./session.cjs');
+const { runInstallTests } = require('./install.cjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -568,10 +569,13 @@ const dbState = (page) =>
   /* ===== 6d. Päivän sessio kokonaisuutena: kirjoitus sessiossa, ohitus, ✕, rytmi, asetukset, aikabudjetti ===== */
   await run('päivän sessio', () => runSessionTests({ base, check, out: OUT }));
 
+  /* ===== 6e. Asennus ja vianetsintä: asennussivu, korjaus ja käynnistysvahti ===== */
+  await run('asennus', () => runInstallTests({ base, check, out: OUT }));
+
   /* ===== 7. Edistyminen ja Lisää ===== */
   await run('edistyminen', async () => {
     await navTo(page, 'more');
-    check('Lisää-näkymässä on kolme linkkiä', (await page.locator('nav.tiles a').count()) === 3);
+    check('Lisää-näkymässä on neljä linkkiä', (await page.locator('nav.tiles a').count()) === 4);
     await noGarbage(page, 'Lisää');
     await shot(page, '13-lisaa');
     await navTo(page, 'progress');
@@ -594,7 +598,7 @@ const dbState = (page) =>
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.6\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.6\\.1 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');

@@ -84,7 +84,7 @@ export async function mount(root, ctx) {
     );
   } else {
     hero.append(
-      h('ul', { class: 'plain plan' }, plan.map((p) => h('li', {}, p))),
+      h('ol', { class: 'plain plan', 'aria-label': 'Päivän vaiheet' }, plan.map((p) => h('li', {}, p))),
       h('div', { class: 'actions' }, h('a', { class: 'btn primary big', href: '#/session' }, 'Aloita')),
     );
   }

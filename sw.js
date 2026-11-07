@@ -2,7 +2,7 @@
 // Versio ja tiedostolista päivitetään komennolla `node tools/stamp.mjs` (testi varmistaa, että ne ovat ajan tasalla).
 
 // <generated>
-const VERSION = '266f2f9f5d';
+const VERSION = '5aaa6dd427';
 const SHELL = [
   './',
   'css/app.css',
@@ -16,6 +16,7 @@ const SHELL = [
   'js/ai-keys.js',
   'js/ai.js',
   'js/app.js',
+  'js/boot-guard.js',
   'js/clips.js',
   'js/content.js',
   'js/db.js',
@@ -23,15 +24,18 @@ const SHELL = [
   'js/fsrs.js',
   'js/match.js',
   'js/plan.js',
+  'js/repair.js',
   'js/runner.js',
   'js/settings.js',
   'js/speakable.js',
   'js/speech.js',
   'js/srs.js',
   'js/stats.js',
+  'js/steps.js',
   'js/ui.js',
   'js/util.js',
   'js/version.js',
+  'js/views/install.js',
   'js/views/lessons.js',
   'js/views/more.js',
   'js/views/progress.js',

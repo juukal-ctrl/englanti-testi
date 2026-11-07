@@ -5,15 +5,18 @@ import { icon, progressBar, confirmDialog } from './ui.js';
 import { teach, unitIntro, choose, flipRec, flipProd, shadow } from './exercises.js';
 import { pickFormat } from './content.js';
 import { State } from './fsrs.js';
+import { progressView } from './steps.js';
 
 /** Yhden tehtävän enintään laskettava aika: pitkä tauko ei ole harjoittelua. */
 export const IDLE_CAP_MS = 90000;
 
 /**
- * Harjoituksen kehys: otsikkorivi (✕ lopettaa vahvistuksen jälkeen), etenemispalkin paikka ja sisältöalue.
+ * Harjoituksen kehys: otsikkorivi (✕ lopettaa vahvistuksen jälkeen), mahdollinen session kokonaisedistyminen
+ * (progress, ks. steps.js), etenemispalkin paikka ja sisältöalue.
  * Piilottaa alavalikon, kunnes näkymä vaihtuu. Käyttävät sekä tehtäväjono että session kirjoitusvaihe.
+ * refresh() päivittää kokonaisedistymisen (tehtävän vaihtuessa).
  */
-export function runnerShell(root, { title = '', onQuit } = {}) {
+export function runnerShell(root, { title = '', onQuit, progress = null } = {}) {
   const countEl = h('span', { class: 'runner-count', 'aria-live': 'off' });
   const barHost = h('div', { class: 'bar-host' });
   const box = h('section', { class: 'runner-box' });
@@ -37,11 +40,12 @@ export function runnerShell(root, { title = '', onQuit } = {}) {
     },
     icon('close'),
   );
+  const steps = progress ? progressView(progress) : null;
   clear(root).append(
-    h('div', { class: 'runner' }, h('header', { class: 'runner-head' }, quitBtn, h('div', { class: 'runner-title' }, title), countEl), barHost, box),
+    h('div', { class: 'runner' }, h('header', { class: 'runner-head' }, quitBtn, h('div', { class: 'runner-title' }, title), countEl), steps?.el, barHost, box),
   );
   document.body.dataset.focus = '1'; // harjoituksen aikana alavalikko piilossa; ✕ lopettaa
-  return { box, barHost, countEl, quitBtn };
+  return { box, barHost, countEl, quitBtn, refresh: () => steps?.update() };
 }
 
 /**
@@ -49,9 +53,10 @@ export function runnerShell(root, { title = '', onQuit } = {}) {
  * tehtävä = { kind: 'intro'|'teach'|'test'|'produce'|'review'|'shadow', item, unit?, atomic?, cta? }
  * Aikaraja (budgetMs) tarkistetaan vain ei-atomisten tehtävien alussa, joten ryhmä ei katkea kesken.
  * reserveMs: uutta ei-atomista tehtävää ei aloiteta, jos sen jälkeen ei jäisi vähintään tämän verran aikaa.
+ * progress (valinnainen): session kokonaisedistyminen, jonka kehys näyttää (ks. steps.js).
  * Palauttaa { shown, graded, again, good, ms, activeMs, taught, known, speak:[pct], ended: 'complete'|'time'|'quit' }.
  */
-export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, reserveMs = 0, signal } = {}) {
+export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, reserveMs = 0, signal, progress = null } = {}) {
   const now = () => (ctx.now ? ctx.now() : performance.now());
   const stats = { shown: 0, graded: 0, again: 0, good: 0, ms: 0, activeMs: 0, taught: 0, known: 0, speak: [], ended: 'complete' };
   const queue = tasks.map((t) => ({ ...t }));
@@ -65,11 +70,12 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, r
   const quitPromise = new Promise((resolve) => (quit = resolve));
   ac.signal.addEventListener('abort', () => quit({ quit: true }), { once: true });
 
-  const { box, barHost, countEl } = runnerShell(root, { title: title ?? '', onQuit: () => ac.abort() });
+  const { box, barHost, countEl, refresh } = runnerShell(root, { title: title ?? '', onQuit: () => ac.abort(), progress });
 
   const paint = () => {
     countEl.textContent = `${Math.min(done + 1, total)} / ${total}`;
     clear(barHost).append(progressBar(done, total, 'Eteneminen'));
+    refresh();
   };
 
   const runOne = async (task) => {

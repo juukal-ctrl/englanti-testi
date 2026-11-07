@@ -37,6 +37,12 @@ aikarajattu (asetus `sessionMinutes`, oletus 15 min) ja koostuu neljästä vaihe
    ohittaa vaiheen ja ✕ lopettaa session (luonnos säilyy).
 4. **Puhe** (loppuaika, 3–8 lausetta): kuuntele ja sano perässä.
 
+**Kokonaisedistyminen (`js/steps.js`, puhdas malli; yksikkötestit `tests/steps.test.mjs`):** vaiheet lasketaan etukäteen
+(kertaus vain jos kortteja erääntyy, uutta vain jos sitä on ja aikaa jää, kirjoitus vain kirjoituspäivinä, puhe aina).
+Harjoituksen yläreunassa näkyy "Vaihe 2 / 4", kulunut aika ("5 / 15 min") ja yksi palkki per vaihe (tehty ✓, käynnissä
+korostettuna, ohitettu katkoviivalla). Vaihe-ilmoitus tulee myös ruudunlukijalle. Tänään-näkymän suunnitelma on numeroitu
+samassa järjestyksessä. Vaiheiden numerointi ei muutu kesken session: aikarajan takia väliin jäänyt vaihe näkyy ohitettuna.
+
 Ryhmää ei aloiteta, ellei sille jää aikaa, eikä ryhmää keskeytetä kesken. Jos oppija etenee nopeasti, sessio päättyy
 suunnitelman loppuun; "15 min lisää" jatkaa uusilla ilmauksilla (lisäsessioon ei kuulu kirjoitusta). Tänään-näkymä näyttää
 todellisen harjoitteluajan (yksittäinen tehtävä lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
@@ -131,6 +137,9 @@ NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e
 # Pelkkä päivän sessio (kirjoitus sessiossa, ohitus, ✕, rytmi, asetukset, aikabudjetti valekellolla; app.cjs ajaa saman osion mukanaan)
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/session.cjs
 
+# Pelkkä asennus ja vianetsintä (Asennus-sivu, asennuskehote, välimuistin korjaus oikealla service workerilla, käynnistysvahti)
+NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/install.cjs
+
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
 node tools/stamp.mjs
 ```
@@ -151,6 +160,9 @@ js/
   db.js           IndexedDB (muistivaraus), varmuuskopion vienti ja tuonti
   runner.js       tehtäväjono, aikaraja, virheiden palautus jonoon; runnerShell (session kehys: ✕, otsikko, palkki)
   plan.js         päivän session suunnittelu (puhdas moduuli): kirjoituksen vuoro ja valinta, aikabudjetit
+  steps.js        session kokonaisedistyminen (puhdas malli) ja sen näkymä: "Vaihe 2 / 4", kulunut aika, vaihepalkit
+  repair.js       sovelluksen korjaus: service workerin ja kuoren välimuistin tyhjennys (oppimisdata säilyy)
+  boot-guard.js   käynnistysvahti (tavallinen skripti): jos sovellus ei käynnisty 10 sekunnissa, tarjoaa korjausnapin
   exercises.js    harjoitustyypit
   speech.js       puhesynteesi (myös jono: ilmaus ja esimerkki) ja puheentunnistus; esiäänitetty leike ensin, laitteen ääni varana
   clips.js        esiäänitetyt Kokoro-leikkeet: manifesti, haku, ennakkolataus ja toisto
@@ -216,6 +228,18 @@ tehdään automaattisesti uudelleen. Korvaukseksi kelpaa myös oma ääntämys m
 `{ "\\bPO\\b": "[PO](/pˌiˈO/)" }`. Foneemit kirjoitetaan misakin amerikanenglannin merkinnällä: `A` = eɪ, `I` = aɪ,
 `O` = oʊ, `W` = aʊ, `Y` = ɔɪ, `ʤ` = dʒ, `ʧ` = tʃ, `T` = r-äänteinen t (flap); `ˈ` on pääpaino ja `ˌ` sivupaino.
 Mallin lukutapa selviää ajon jälkeen tiedostosta `phonemes.tsv` (haara `kokoro-log`).
+
+## Asennus ja vianetsintä
+
+Lisää → Asennus ja vianetsintä (`#/install`) kertoo, onko sovellus käynnissä asennettuna vai selaimessa, tarjoaa Chromen
+asennuskehotteen (kun Chrome sen antaa), näyttää offline-valmiuden ja versiot sekä neuvoo asennetun sovelluksen
+löytämisen ja uudelleenasennuksen (varmuuskopio ensin). Manifestin `related_applications` antaa Chromelle mahdollisuuden
+kertoa selaimen välilehdessä, onko sovellus asennettu (`getInstalledRelatedApps`).
+
+Jos sovellus ei käynnisty (rikkoutunut välimuisti, moduulin latausvirhe), `js/boot-guard.js` näyttää kymmenen sekunnin
+kuluttua hälytyksen ja korjausnapin. Napin ja Asennus-sivun korjaus poistavat service workerin ja sovelluskuoren
+välimuistin (`englanti-<versio>`), mutta eivät oppimisdataa (IndexedDB) eikä ääniä (`englanti-audio-v1`). Sama nappi
+näkyy myös käynnistysvirheen ruudulla.
 
 ## Julkaisu
 

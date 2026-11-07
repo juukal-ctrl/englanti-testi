@@ -44,6 +44,14 @@ async function runSessionTests({ base, check, out = '/tmp/e2e-out' }) {
   const shot = (name, opts = {}) => page.screenshot({ path: path.join(out, `${name}.png`), ...opts });
   const setClock = (n, hour = 10) => context.clock.setFixedTime(atDay(n, hour));
   const planLines = () => page.locator('.hero .plan li').allTextContents();
+  /** Session kokonaisedistyminen sellaisena kuin se juuri nyt näkyy. */
+  const stepsNow = () =>
+    page.evaluate(() => ({
+      line: document.querySelector('.steps-line')?.textContent ?? null,
+      time: document.querySelector('.steps-time')?.textContent ?? null,
+      steps: [...document.querySelectorAll('.steps .step')].map((li) => ({ label: li.querySelector('.step-label')?.textContent.replace(/\s+/g, ' ').trim(), cls: li.className.replace('step ', ''), current: li.getAttribute('aria-current') })),
+      title: document.querySelector('.runner-title')?.textContent,
+    }));
   const taskInfo = (id) =>
     page.evaluate(async (taskId) => {
       const { WRITING_TASKS } = await import(new URL('data/writing.js', document.baseURI).href);
@@ -132,6 +140,20 @@ async function runSessionTests({ base, check, out = '/tmp/e2e-out' }) {
       await shot('71-tanaan-kirjoitus-mukana');
 
       await startSession();
+      const first = await stepsNow();
+      check('session alussa kokonaisedistyminen näkyy: "Vaihe 1 / 4"', first.line === 'Vaihe 1 / 4' && first.title === 'Kertaus', JSON.stringify(first));
+      check(
+        'vaihepalkit ovat Kertaus, Uutta, Kirjoitus, Puhe ja ensimmäinen on käynnissä',
+        JSON.stringify(first.steps.map((x) => x.label.replace(/^✓ /, '').replace(/ \(.*\)$/, ''))) === JSON.stringify(['Kertaus', 'Uutta', 'Kirjoitus', 'Puhe']) && first.steps[0].cls === 'current' && first.steps[0].current === 'step' && first.steps.slice(1).every((x) => x.cls === 'todo' && x.current === null),
+        JSON.stringify(first.steps),
+      );
+      check('kulunut kokonaisaika näkyy muodossa "0 / 15 min"', first.time === '0 / 15 min', first.time);
+      await shot('77-sessio-vaihemittari');
+      await overflow('vaihemittari 412 px');
+      await page.setViewportSize({ width: 360, height: 640 });
+      await overflow('vaihemittari 360 px');
+      await shot('78-sessio-vaihemittari-360');
+      await page.setViewportSize({ width: 412, height: 915 });
       const pre = await playRunner(page, { stopBefore: 'write' });
       check('sessio etenee kirjoitusvaiheeseen kertauksen ja uuden sisällön jälkeen', pre.end === 'before:write', pre.end);
       const kinds = pre.log.map((l) => l.kind);
@@ -152,6 +174,12 @@ async function runSessionTests({ base, check, out = '/tmp/e2e-out' }) {
       check('kirjoitusvaihe näkyy session kehyksessä: otsikko, tehtävä ja tyhjä kirjoitusruutu', ws.eyebrow === 'Kirjoitus' && ws.head === 'Kirjoitus' && ws.title === followup.title && ws.text === '' && ws.back === 0, JSON.stringify(ws));
       check('kirjoitusvaiheessa on "Ohita kirjoitus tänään" ja alavalikko on piilossa', ws.skip === 'Ohita kirjoitus tänään' && ws.focus === '1' && !(await page.isVisible('#nav')), JSON.stringify(ws));
       check('kirjoitusvaihe kuulutetaan ruudunlukijalle ja otsikko saa kohdistuksen', /Kirjoitus: /.test(ws.live));
+      const atWrite = await stepsNow();
+      check(
+        'kirjoitusvaiheessa mittari näyttää "Vaihe 3 / 4", kaksi ensimmäistä tehty',
+        atWrite.line === 'Vaihe 3 / 4' && atWrite.steps.map((x) => x.cls).join(',') === 'done,done,current,todo' && atWrite.steps[2].current === 'step' && /^\d+ \/ 15 min$/.test(atWrite.time ?? ''),
+        JSON.stringify(atWrite),
+      );
       const t = await page.evaluate(() => document.querySelector('.runner-box').innerText);
       check('ei roskatekstiä: kirjoitusvaihe', !GARBAGE.test(t), (t.match(GARBAGE) ?? [''])[0]);
       await overflow('kirjoitusvaihe 412 px');
@@ -219,13 +247,22 @@ async function runSessionTests({ base, check, out = '/tmp/e2e-out' }) {
       const plan = await planLines();
       check('ohitettu kirjoitus tarjotaan seuraavana päivänä uudelleen (ohitusta ei kirjata)', plan.some((l) => l.startsWith(`Kirjoitus: ${followup.title}`)), JSON.stringify(plan));
       await startSession();
+      let atSpeak = null;
       const res = await playRunner(page, {
         write: 'done',
+        onShown: async (kind) => {
+          if (kind === 'shadow' && !atSpeak) atSpeak = await stepsNow();
+        },
         onRevealed: async (kind) => {
           if (kind === 'write') await shot('75-sessio-kirjoitus-palaute', { fullPage: true });
         },
       });
       check('sessio päättyy yhteenvetoon kirjoituksen jälkeen', res.end === 'summary', res.end);
+      check(
+        'puhevaiheessa mittari näyttää viimeisen vaiheen käynnissä ja kaikki aiemmat tehtyinä',
+        atSpeak && atSpeak.title === 'Puhe' && atSpeak.steps.length >= 2 && atSpeak.line === `Vaihe ${atSpeak.steps.length} / ${atSpeak.steps.length}` && atSpeak.steps.at(-1).cls === 'current' && atSpeak.steps.slice(0, -1).every((x) => x.cls === 'done'),
+        JSON.stringify(atSpeak),
+      );
       const kinds = res.log.map((l) => l.kind);
       const wi = kinds.indexOf('write');
       const w = res.log[wi];

@@ -9,6 +9,7 @@ export function mount(root, ctx) {
       link('#/vocab', 'Sanasto', 'Kaikki ilmaukset, haku ja äänet'),
       link('#/progress', 'Edistyminen', 'Mitä olet oppinut ja mitä on tulossa'),
       link('#/settings', 'Asetukset', 'Ääni, ulkoasu, varmuuskopio'),
+      link('#/install', 'Asennus ja vianetsintä', 'Sovelluksen asennus, löytäminen ja korjaus'),
     ),
     h(
       'section',

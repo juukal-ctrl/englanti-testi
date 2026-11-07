@@ -356,17 +356,29 @@ body[data-focus='1'] #nav {
   margin-top: -0.4rem;
   text-transform: capitalize;
 }
-ul.plain {
+ul.plain,
+ol.plain {
   list-style: none;
   margin: 0 0 0.5rem;
   padding: 0;
 }
-ul.plain li {
+ul.plain li,
+ol.plain li {
   padding: 0.25rem 0;
 }
 ul.plan li::before {
   content: '•';
   color: var(--accent);
+  margin-right: 0.6rem;
+}
+ol.plan {
+  counter-reset: plan;
+}
+ol.plan li::before {
+  counter-increment: plan;
+  content: counter(plan) '.';
+  color: var(--accent);
+  font-weight: 700;
   margin-right: 0.6rem;
 }
 .tiles {
@@ -567,6 +579,76 @@ dialog.dialog::backdrop {
   background: var(--accent);
   border-radius: 0.5rem;
   transition: width 0.25s ease;
+}
+/* Session kokonaisedistyminen: "Vaihe 2 / 4", kulunut aika ja yksi palkki per vaihe */
+.steps-wrap {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0.3rem 0 0.2rem;
+}
+.steps-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+}
+.steps-line {
+  font-weight: 700;
+}
+.steps-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.steps {
+  display: flex;
+  gap: 0.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.step {
+  flex: 1 1 0;
+  min-width: 0;
+  display: grid;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.step-bar {
+  height: 0.4rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+}
+.step.done .step-bar {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.step.current .step-bar {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.step.skipped .step-bar {
+  border-style: dashed;
+  background: none;
+}
+.step.current {
+  color: var(--ink);
+  font-weight: 700;
+}
+.step.skipped {
+  opacity: 0.7;
+}
+.step-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step-mark {
+  color: var(--accent);
 }
 .runner-box {
   padding-top: 0.75rem;
@@ -1157,4 +1239,12 @@ html[data-motion='reduce'] *::before,
 html[data-motion='reduce'] *::after {
   transition: none !important;
   animation: none !important;
+}
+
+/* Asennus ja vianetsintä */
+ol.steps-list {
+  margin: 0.4rem 0 0.6rem;
+  padding-left: 1.4rem;
+  display: grid;
+  gap: 0.45rem;
 }

@@ -7,6 +7,7 @@ import { nextNewItems } from '../content.js';
 import { runTasks, reviewTasks, newContentTasks, shadowTasks } from '../runner.js';
 import { summarize } from '../stats.js';
 import { planBudgets, planWriting, SHADOW_TASK_MS } from '../plan.js';
+import { createProgress } from '../steps.js';
 import { runWriting } from './write.js';
 
 /**
@@ -32,29 +33,44 @@ export async function mount(root, ctx, params = []) {
   const elapsed = () => now() - t0;
   const result = { reviewed: 0, again: 0, learned: 0, known: 0, speak: [], wrote: null, skippedWrite: false, quit: false };
 
+  // Vaiheet lasketaan etukäteen, jotta kokonaisedistyminen ("Vaihe 2 / 4") on koko session ajan samassa mittakaavassa.
+  const rt = reviewTasks(ctx, 60);
+  const today = ctx.srs.today();
+  let allowed = extra ? s.newMax : Math.max(0, s.newMax - ctx.srs.introducedToday(today));
+  const newPlanned =
+    allowed > 0 && total - budget.speakReserveMs - budget.writeReserveMs >= budget.chunkReserveMs && nextNewItems((id) => ctx.srs.isLearned(id), 1).length > 0;
+  const phases = [];
+  if (rt.length) phases.push({ id: 'review', label: 'Kertaus' });
+  if (newPlanned) phases.push({ id: 'new', label: 'Uutta' });
+  if (writing) phases.push({ id: 'write', label: 'Kirjoitus' });
+  phases.push({ id: 'speak', label: 'Puhe' });
+  const progress = createProgress({ phases, total, elapsed });
+
   (async () => {
     // 1. Kertaus
-    const rt = reviewTasks(ctx, 60);
     if (rt.length) {
-      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: budget.reviewMs, signal: ac.signal });
+      progress.start('review');
+      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: budget.reviewMs, signal: ac.signal, progress });
       result.reviewed += st.graded;
       result.again += st.again;
       if (st.ended === 'quit') return finish(true);
+      progress.finish('review');
     }
 
     // 2. Uudet ilmaukset: ryhmä kerrallaan, kunnes aika tai päiväraja tulee vastaan.
     // "Osaan jo" -ilmaukset eivät kuluta päivän rajaa, joten niiden jälkeen otetaan lisää.
     // Kirjoitukselle ja puheelle varattu aika jätetään pois.
-    const today = ctx.srs.today();
-    let allowed = extra ? s.newMax : Math.max(0, s.newMax - ctx.srs.introducedToday(today));
     let handled = 0;
+    let startedNew = false;
     const handledMax = Math.max(allowed * 2, allowed + 6); // varmuus: ei loputonta ohittelua
     while (allowed > 0 && handled < handledMax && !ac.signal.aborted) {
       const left = total - budget.speakReserveMs - budget.writeReserveMs - elapsed();
       if (left < budget.chunkReserveMs) break;
       const items = nextNewItems((id) => ctx.srs.isLearned(id), allowed);
       if (!items.length) break;
-      const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: 'Uutta', budgetMs: left, reserveMs: budget.chunkReserveMs, signal: ac.signal });
+      startedNew = true;
+      progress.start('new');
+      const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: 'Uutta', budgetMs: left, reserveMs: budget.chunkReserveMs, signal: ac.signal, progress });
       result.learned += st.taught;
       result.known += st.known;
       result.again += st.again;
@@ -64,25 +80,32 @@ export async function mount(root, ctx, params = []) {
       if (st.ended === 'quit') return finish(true);
       if (st.ended === 'time' || st.taught + st.known === 0) break;
     }
+    if (startedNew) progress.finish('new');
+    else progress.skip('new');
 
     // 3. Kirjoitus: yksi lyhyt työviesti, kun sen vuoro on. Valmis tehtävä tai ohitus jatkaa puheeseen.
     if (writing && !ac.signal.aborted) {
-      const w = await runWriting(ctx, root, writing.task, { signal: ac.signal });
+      progress.start('write');
+      const w = await runWriting(ctx, root, writing.task, { signal: ac.signal, progress });
       if (w.ended === 'quit') return finish(true);
       if (w.ended === 'complete') result.wrote = { id: writing.task.id, title: writing.task.title, words: w.words };
       else result.skippedWrite = true;
+      progress.finish('write', w.ended === 'complete' ? 'done' : 'skipped');
     }
 
     // 4. Puhe: jäljellä oleva aika, 3–8 lausetta
     const remaining = Math.max(0, total - elapsed());
     const n = clamp(Math.round(remaining / SHADOW_TASK_MS), 3, 8);
+    progress.start('speak');
     const st = await runTasks(ctx, root, shadowTasks(ctx, n), {
       title: 'Puhe',
       budgetMs: Math.max(budget.speakReserveMs, remaining),
       signal: ac.signal,
+      progress,
     });
     result.speak.push(...st.speak);
     if (st.ended === 'quit') return finish(true);
+    progress.finish('speak');
     finish(false);
   })();
 

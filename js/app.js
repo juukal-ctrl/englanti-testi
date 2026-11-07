@@ -21,6 +21,8 @@ import * as vocab from './views/vocab.js';
 import * as progress from './views/progress.js';
 import * as settingsView from './views/settings.js';
 import * as writeView from './views/write.js';
+import * as installView from './views/install.js';
+import { repairApp } from './repair.js';
 
 const ROUTES = {
   today: { view: today, nav: 'today' },
@@ -34,9 +36,22 @@ const ROUTES = {
   vocab: { view: vocab, nav: 'more' },
   progress: { view: progress, nav: 'more' },
   settings: { view: settingsView, nav: 'more' },
+  install: { view: installView, nav: 'more' },
 };
 
 const $ = (sel) => document.querySelector(sel);
+
+// Chromen asennuskehote ja asennustapahtuma: tallennetaan heti, koska ne tulevat ennen kuin näkymät ovat valmiita.
+const install = { event: null, installed: false };
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  install.event = e;
+});
+window.addEventListener('appinstalled', () => {
+  install.event = null;
+  install.installed = true;
+  toast('Sovellus on asennettu. Etsi se sovellusluettelosta nimellä "Englanti".', { ms: 8000 });
+});
 
 async function main() {
   const db = await openDb();
@@ -84,6 +99,7 @@ async function main() {
   };
   ctx.aiKeys = createKeyStore(db, () => settings); // API-avaimet: muistissa, laitteelle vain pyydettäessä
   ctx.clipStats = clipStats; // toistetut ja puuttuvat äänileikkeet (testit, virheenjäljitys)
+  ctx.install = install; // Chromen asennuskehote (Asennus-sivu)
   window.__englanti = ctx; // testejä ja virheenjäljitystä varten
   loadManifest(); // esiäänitettyjen äänien luettelo valmiiksi ennen ensimmäistä toistoa
 
@@ -133,6 +149,7 @@ async function main() {
     }
     window.scrollTo(0, 0);
     firstRender = false;
+    document.documentElement.dataset.ready = '1'; // käynnistysvahti (boot-guard.js) tietää, että sovellus on käynnissä
   };
   window.addEventListener('hashchange', render);
   window.addEventListener('pagehide', stopSpeaking);
@@ -178,7 +195,27 @@ main().catch((e) => {
   if (view) {
     view.replaceChildren(
       h('h1', {}, 'Sovellus ei käynnistynyt'),
-      h('p', {}, 'Päivitä sivu. Jos virhe toistuu, kokeile avata sovellus uudelleen tai ilmoita virheestä.'),
+      h('p', {}, 'Päivitä sivu. Jos virhe toistuu, korjaa välimuisti alla olevalla napilla. Se ei poista oppimisdataa.'),
+      h(
+        'div',
+        { class: 'actions' },
+        h(
+          'button',
+          {
+            class: 'btn primary',
+            type: 'button',
+            id: 'error-repair',
+            on: {
+              click: async (ev) => {
+                ev.currentTarget.disabled = true;
+                await repairApp();
+                location.reload();
+              },
+            },
+          },
+          'Korjaa ja yritä uudelleen',
+        ),
+      ),
       h('pre', { class: 'error-pre' }, String(e?.stack || e)),
     );
   }

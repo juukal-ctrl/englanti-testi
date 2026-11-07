@@ -44,11 +44,11 @@ export async function mount(root, ctx, params = []) {
  * Ratkeaa, kun oppija merkitsee tehtävän valmiiksi, ohittaa sen tai lopettaa session (tai signal keskeytetään).
  * Palauttaa { ended: 'complete' | 'skip' | 'quit', words? }. Luonnos ja kirjoitusaika tallentuvat joka tapauksessa.
  */
-export async function runWriting(ctx, root, task, { signal } = {}) {
+export async function runWriting(ctx, root, task, { signal, progress = null } = {}) {
   await queue;
   let finish;
   const result = new Promise((resolve) => (finish = resolve));
-  const shell = runnerShell(root, { title: 'Kirjoitus', onQuit: () => finish({ ended: 'quit' }) });
+  const shell = runnerShell(root, { title: 'Kirjoitus', onQuit: () => finish({ ended: 'quit' }), progress });
   const view = await mountTask(shell.box, ctx, task, {
     embedded: true,
     onDone: (res) => finish({ ended: 'complete', words: res.words }),
