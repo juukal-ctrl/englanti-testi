@@ -10,6 +10,41 @@ import { State } from './fsrs.js';
 export const IDLE_CAP_MS = 90000;
 
 /**
+ * Harjoituksen kehys: otsikkorivi (✕ lopettaa vahvistuksen jälkeen), etenemispalkin paikka ja sisältöalue.
+ * Piilottaa alavalikon, kunnes näkymä vaihtuu. Käyttävät sekä tehtäväjono että session kirjoitusvaihe.
+ */
+export function runnerShell(root, { title = '', onQuit } = {}) {
+  const countEl = h('span', { class: 'runner-count', 'aria-live': 'off' });
+  const barHost = h('div', { class: 'bar-host' });
+  const box = h('section', { class: 'runner-box' });
+  const quitBtn = h(
+    'button',
+    {
+      class: 'icon-btn',
+      type: 'button',
+      'aria-label': 'Lopeta',
+      on: {
+        click: async () => {
+          const ok = await confirmDialog({
+            title: 'Lopetetaanko tähän?',
+            body: 'Tähän mennessä tehty on jo tallennettu.',
+            confirmText: 'Lopeta',
+            cancelText: 'Jatka',
+          });
+          if (ok) onQuit?.();
+        },
+      },
+    },
+    icon('close'),
+  );
+  clear(root).append(
+    h('div', { class: 'runner' }, h('header', { class: 'runner-head' }, quitBtn, h('div', { class: 'runner-title' }, title), countEl), barHost, box),
+  );
+  document.body.dataset.focus = '1'; // harjoituksen aikana alavalikko piilossa; ✕ lopettaa
+  return { box, barHost, countEl, quitBtn };
+}
+
+/**
  * Suorittaa tehtävät järjestyksessä.
  * tehtävä = { kind: 'intro'|'teach'|'test'|'produce'|'review'|'shadow', item, unit?, atomic?, cta? }
  * Aikaraja (budgetMs) tarkistetaan vain ei-atomisten tehtävien alussa, joten ryhmä ei katkea kesken.
@@ -30,33 +65,7 @@ export async function runTasks(ctx, root, tasks, { title, budgetMs = Infinity, r
   const quitPromise = new Promise((resolve) => (quit = resolve));
   ac.signal.addEventListener('abort', () => quit({ quit: true }), { once: true });
 
-  const countEl = h('span', { class: 'runner-count', 'aria-live': 'off' });
-  const barHost = h('div', { class: 'bar-host' });
-  const box = h('section', { class: 'runner-box' });
-  const quitBtn = h(
-    'button',
-    {
-      class: 'icon-btn',
-      type: 'button',
-      'aria-label': 'Lopeta',
-      on: {
-        click: async () => {
-          const ok = await confirmDialog({
-            title: 'Lopetetaanko tähän?',
-            body: 'Tähän mennessä tehty on jo tallennettu.',
-            confirmText: 'Lopeta',
-            cancelText: 'Jatka',
-          });
-          if (ok) ac.abort();
-        },
-      },
-    },
-    icon('close'),
-  );
-  clear(root).append(
-    h('div', { class: 'runner' }, h('header', { class: 'runner-head' }, quitBtn, h('div', { class: 'runner-title' }, title ?? ''), countEl), barHost, box),
-  );
-  document.body.dataset.focus = '1'; // harjoituksen aikana alavalikko piilossa; ✕ lopettaa
+  const { box, barHost, countEl } = runnerShell(root, { title: title ?? '', onQuit: () => ac.abort() });
 
   const paint = () => {
     countEl.textContent = `${Math.min(done + 1, total)} / ${total}`;

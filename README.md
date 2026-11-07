@@ -10,11 +10,11 @@ Sovellus, sisältö ja koodi on tehty Clauden avulla.
 
 ## Mitä sovelluksessa on
 
-- **Päivän sessio (aikarajattu, oletus 15 min):** kertaus, uudet ilmaukset ja puheharjoitus. Katso [Päivän sessio](#päivän-sessio).
+- **Päivän sessio (aikarajattu, oletus 15 min):** kaikki harjoitukset yhden session ja yhden kellon takana: kertaus, uudet ilmaukset, joka toinen päivä lyhyt kirjoitustehtävä ja lopuksi puhe. Erillisiä harjoituksia on vain vapaaehtoisina lisinä etusivun "Lisäharjoitusta"-osiossa. Katso [Päivän sessio](#päivän-sessio).
 - **Kertaus FSRS-6-ajastuksella:** ilmaukset palaavat juuri ennen unohtamista. Tavoitesäilyvyys 90 % (säädettävä).
 - **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (shadowing).
 - **Puhe:** esiäänitetty Kokoro-ääni (luonnollinen painotus, myös hitaasti; toimii ilman verkkoa, kun äänet on ladattu laitteelle), laitteen oma puhesynteesi varana sekä puheentunnistus (sano). Tunnistus on apuväline, ei arvosana. Numerot hyväksytään kaikissa muodoissa (`3`, `third`, `three`). Katso [Äänet](#äänet-kokoro).
-- **Kirjoita:** lyhyet työviestit englanniksi (sähköposti, pikaviesti). Palaute tulee heti laitteella, ilman verkkoa: sääntötarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus, suomenkieliset sanat), näyttää puuttuvat asiat ja harjoiteltavat ilmaukset sekä antaa kuunneltavan mallivastauksen. Katso [Kirjoita](#kirjoita).
+- **Kirjoita:** lyhyet työviestit englanniksi (sähköposti, pikaviesti), osana päivän sessiota (oletuksena joka toinen päivä) tai erikseen lisäharjoituksista. Palaute tulee heti laitteella, ilman verkkoa: sääntötarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus, suomenkieliset sanat), näyttää puuttuvat asiat ja harjoiteltavat ilmaukset sekä antaa kuunneltavan mallivastauksen. Katso [Kirjoita](#kirjoita).
 - **Tekoälypalaute (valinnainen):** Kirjoita-tehtävän palautteeseen voi pyytää lisäksi Geminin tai Clauden arvion omalla API-avaimella: korjausehdotukset suomeksi selitettyinä, korjattu versio ja vinkki. Pyyntö lähtee vain painikkeesta. Katso [Tekoälypalaute](#tekoälypalaute-valinnainen).
 - **Sanasto, edistyminen, asetukset** sekä JSON-varmuuskopion vienti ja tuonti.
 - **Offline:** koko sovellus välimuistitetaan (service worker) ja toimii ilman verkkoa.
@@ -24,18 +24,37 @@ Sisältö on tällä hetkellä 12 aihetta, 126 ilmausta ja 12 kirjoitustehtävä
 
 ## Päivän sessio
 
-Sessio on aikarajattu (asetus `sessionMinutes`, oletus 15 min) ja koostuu kolmesta osasta:
+Kaikki päivittäinen harjoittelu on yhden session sisällä: yksi aloituspainike, yksi kello ja yksi yhteenveto. Sessio on
+aikarajattu (asetus `sessionMinutes`, oletus 15 min) ja koostuu neljästä vaiheesta:
 
-1. **Kertaus** (enintään 45 % ajasta): erääntyneet kortit.
+1. **Kertaus** (enintään 45 % ajasta, kirjoituspäivänä 30 %): erääntyneet kortit.
 2. **Uudet ilmaukset** ryhmissä (3 kerrallaan), kunnes aika tai päiväraja (`newMax`, oletus 12) tulee vastaan:
    aiheen esittely (jos aiheesta ei ole vielä opittu mitään) → opetus ×3 (kuuntele, lue, sano ääneen) → testi ×3
    (ensimmäinen arvosana ajastukselle) → tuottaminen ×3 (suomesta englanniksi, ei arvosanaa).
    "Osaan tämän jo" kirjaa ilmauksen helpoksi (Easy) eikä kuluta päivän rajaa.
-3. **Puhe** (loppuaika, 3–8 lausetta): kuuntele ja sano perässä.
+3. **Kirjoitus** (vain kirjoituspäivinä): yksi lyhyt työviesti, joka vahvistaa juuri opittuja ilmauksia. Tehtävä on
+   sama kuin Kirjoita-näkymässä, mutta session kehyksessä: "Valmis, jatka" siirtyy puheeseen, "Ohita kirjoitus tänään"
+   ohittaa vaiheen ja ✕ lopettaa session (luonnos säilyy).
+4. **Puhe** (loppuaika, 3–8 lausetta): kuuntele ja sano perässä.
 
 Ryhmää ei aloiteta, ellei sille jää aikaa, eikä ryhmää keskeytetä kesken. Jos oppija etenee nopeasti, sessio päättyy
-suunnitelman loppuun; "15 min lisää" jatkaa uusilla ilmauksilla. Tänään-näkymä näyttää todellisen harjoitteluajan
-(yksittäinen tehtävä lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
+suunnitelman loppuun; "15 min lisää" jatkaa uusilla ilmauksilla (lisäsessioon ei kuulu kirjoitusta). Tänään-näkymä näyttää
+todellisen harjoitteluajan (yksittäinen tehtävä lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
+
+**Kirjoituksen vuoro ja valinta (`js/plan.js`, puhtaita funktioita; yksikkötestit `tests/plan.test.mjs`):**
+
+- Asetus `writeEvery` (Asetukset → Oppiminen → "Kirjoitus päivän sessiossa"): joka toinen päivä (oletus), joka päivä, joka
+  kolmas päivä tai ei sessiossa. Vuoro tulee, kun viimeisestä kirjatusta kirjoitusyrityksestä on kulunut vähintään näin monta
+  päivää. Mikä tahansa kirjattu yritys lasketaan, myös lisäharjoituksista tehty; ohitusta ei kirjata, joten ohitettu
+  kirjoitus tarjotaan uudelleen seuraavassa sessiossa.
+- Tehtävä valitaan näin: ensin aloitettu luonnos, sitten ensimmäinen tekemätön tehtävä, jonka harjoiteltavista ilmauksista
+  vähintään puolet on jo opittu, ja kun kaikki on tehty, vanhimmin kirjoitettu uudelleen. Jos mikään ei sovi (esimerkiksi heti
+  alussa), kirjoitusta ei ole.
+- Kirjoitus ei mahdu liian lyhyeen sessioon: arvioitu kesto (noin 5–6 min: 90 s lukemiseen ja palautteeseen sekä sanamäärä
+  18 sanaa minuutissa) saa olla enintään puolet sessiosta, eli 10 minuutin sessioon sitä ei oteta.
+- Aikabudjetti (`planBudgets`): kirjoituspäivänä kertaukselle jää 30 % ajasta, kirjoitukselle varataan sen arvioitu kesto,
+  puheelle vähintään 90 sekuntia (kolme lausetta) ja uusia ryhmiä aloitetaan vain, jos niille jää vähintään 2,5 minuuttia.
+  Siksi kirjoituspäivänä uusia ilmauksia ehtii yleensä yhden tai kaksi ryhmää vähemmän.
 
 Ensimmäisinä kertoina ilmaus ei voi saada arvosanaa "Helppo", koska juuri nähty ei ole varmasti pitkäkestoista muistia.
 
@@ -44,6 +63,9 @@ Ensimmäisinä kertoina ilmaus ei voi saada arvosanaa "Helppo", koska juuri näh
 Kirjoitustehtävä on lyhyt työtilanne ("kirjoita seurantaviesti asiakkaalle"), joka sisältää tilanteen, tarvittaessa saadun
 englanninkielisen viestin, 2–5 sisältökohtaa ja 2–4 harjoiteltavaa ilmausta oppitunneilta. Tehtävät ovat tiedostossa
 [`data/writing.js`](data/writing.js).
+
+Tehtävän tekee tavallisesti päivän sessiossa (ks. yllä). Erillinen Kirjoita-lista (etusivu → Lisäharjoitusta → Kirjoita)
+on vapaaehtoinen lisä: siinä voi valita minkä tahansa tehtävän itse ja tehdä ne mihin tahansa aikaan.
 
 **Palaute (sääntötarkistus, `js/writing.js` ja `js/writing-rules.js`):** puhdas JavaScript-moduuli, ei verkkoa eikä tekoälyä.
 Se tarkistaa sanamäärän, tervehdyksen ja päätöksen (viestityypin mukaan), tunnistaa sisältökohdat ja harjoiteltavat ilmaukset ja
@@ -106,6 +128,9 @@ NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e
 # Pelkkä tekoälyosio (asetusten kortti ja Kirjoita-paneeli valepalveluilla; app.cjs ajaa saman osion mukanaan)
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/ai.cjs
 
+# Pelkkä päivän sessio (kirjoitus sessiossa, ohitus, ✕, rytmi, asetukset, aikabudjetti valekellolla; app.cjs ajaa saman osion mukanaan)
+NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/session.cjs
+
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
 node tools/stamp.mjs
 ```
@@ -124,7 +149,8 @@ js/
   fsrs.js         FSRS-6 (21 painoa, Anki-oletukset), verrattu riippumattomaan Python-toteutukseen
   srs.js          kortit, kirjaus, erääntyvien jono
   db.js           IndexedDB (muistivaraus), varmuuskopion vienti ja tuonti
-  runner.js       tehtäväjono, aikaraja, virheiden palautus jonoon
+  runner.js       tehtäväjono, aikaraja, virheiden palautus jonoon; runnerShell (session kehys: ✕, otsikko, palkki)
+  plan.js         päivän session suunnittelu (puhdas moduuli): kirjoituksen vuoro ja valinta, aikabudjetit
   exercises.js    harjoitustyypit
   speech.js       puhesynteesi (myös jono: ilmaus ja esimerkki) ja puheentunnistus; esiäänitetty leike ensin, laitteen ääni varana
   clips.js        esiäänitetyt Kokoro-leikkeet: manifesti, haku, ennakkolataus ja toisto
@@ -133,7 +159,8 @@ js/
   stats.js        edistymisluvut
   writing.js      kirjoitustehtävien tarkistus (puhdas moduuli): sanamäärä, sisältökohdat, ilmaukset, rakenne, lauseisiin jako
   writing-rules.js  virhesäännöt (taulukko; jokaisella tunniste, luokka, vakavuus, selitys ja korjaus)
-  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, kirjoita, sanasto, edistyminen, asetukset)
+  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, kirjoita, sanasto, edistyminen, asetukset);
+                  session kirjoitusvaihe on write.js:n runWriting, joka käyttää samaa tehtävänäkymää kuin Kirjoita
 data/units.js     sisältö (aiheet ja ilmaukset)
 data/writing.js   kirjoitustehtävät (tilanne, sisältökohdat, harjoiteltavat ilmaukset, mallivastaus)
 audio/            esiäänitetyt leikkeet (.ogg) ja manifest.json; GitHub Actions generoi ja tallentaa nämä

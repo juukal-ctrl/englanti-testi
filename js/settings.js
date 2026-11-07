@@ -7,6 +7,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   retention: 0.9, // FSRS:n tavoitesäilyvyys
   newMax: 12, // uusien ilmausten yläraja päivässä; sessio ottaa niitä niin paljon kuin aikaan mahtuu
   sessionMinutes: 15, // ydinsession pituus
+  writeEvery: 2, // kirjoitus päivän sessiossa: 0 = ei lainkaan, 1 = joka päivä, 2 = joka toinen päivä, 3 = joka kolmas päivä
   voiceURI: '', // tyhjä = automaattinen valinta
   rate: 0.85, // puhenopeus
   theme: 'auto', // auto | light | dark
@@ -24,6 +25,7 @@ const RULES = {
   retention: { type: 'number', min: 0.7, max: 0.97 },
   newMax: { type: 'int', min: 0, max: 30 },
   sessionMinutes: { type: 'int', min: 5, max: 60 },
+  writeEvery: { type: 'enum', values: [0, 1, 2, 3] },
   voiceURI: { type: 'string', max: 200 },
   rate: { type: 'number', min: 0.6, max: 1.3 },
   theme: { type: 'enum', values: ['auto', 'light', 'dark'] },

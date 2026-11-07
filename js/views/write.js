@@ -5,9 +5,12 @@ import { h, en, nodes } from '../util.js';
 import { WRITING_TASKS } from '../../data/writing.js';
 import { checkWriting, countWords, isClean, speechParts } from '../writing.js';
 import { speakButton, toast, announce, confirmDialog } from '../ui.js';
+import { summarizeLog } from '../plan.js';
+import { runnerShell } from '../runner.js';
 import { renderFeedback, renderModelCard, verdictOf } from './write-feedback.js';
 import { createAiPanel } from './write-ai.js';
 
+export { summarizeLog };
 export const TASKS = WRITING_TASKS;
 const BY_ID = new Map(TASKS.map((t) => [t.id, t]));
 
@@ -23,19 +26,6 @@ const enqueue = (fn) => (queue = queue.then(fn).catch((e) => console.warn('Kirjo
 
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 
-/** Lokista tehtäväkohtainen tila: yritykset ja onko tehtävä tehty (merkitty valmiiksi tai virheetön yritys). */
-export function summarizeLog(log) {
-  const map = new Map();
-  for (const e of Array.isArray(log) ? log : []) {
-    const s = map.get(e.id) ?? { attempts: 0, done: false, last: null };
-    if (!e.done) s.attempts++;
-    if (e.done || e.clean) s.done = true;
-    s.last = e;
-    map.set(e.id, s);
-  }
-  return map;
-}
-
 /** Seuraava tehtävä listassa: ensisijaisesti sellainen, jota ei ole vielä tehty. */
 export function nextTask(current, state) {
   const i = current ? TASKS.indexOf(current) : -1;
@@ -47,6 +37,31 @@ export async function mount(root, ctx, params = []) {
   await queue; // edellisen näkymän tallennukset valmiiksi ennen lukemista
   const task = params[0] ? BY_ID.get(params[0]) : null;
   return task ? mountTask(root, ctx, task) : mountList(root, ctx);
+}
+
+/**
+ * Kirjoitusvaihe päivän sessiossa: sama tehtävänäkymä kuin Kirjoita-valikossa, mutta session kehyksessä (✕ lopettaa).
+ * Ratkeaa, kun oppija merkitsee tehtävän valmiiksi, ohittaa sen tai lopettaa session (tai signal keskeytetään).
+ * Palauttaa { ended: 'complete' | 'skip' | 'quit', words? }. Luonnos ja kirjoitusaika tallentuvat joka tapauksessa.
+ */
+export async function runWriting(ctx, root, task, { signal } = {}) {
+  await queue;
+  let finish;
+  const result = new Promise((resolve) => (finish = resolve));
+  const shell = runnerShell(root, { title: 'Kirjoitus', onQuit: () => finish({ ended: 'quit' }) });
+  const view = await mountTask(shell.box, ctx, task, {
+    embedded: true,
+    onDone: (res) => finish({ ended: 'complete', words: res.words }),
+    onSkip: () => finish({ ended: 'skip' }),
+  });
+  const onAbort = () => finish({ ended: 'quit' });
+  if (signal?.aborted) onAbort();
+  else signal?.addEventListener('abort', onAbort, { once: true });
+  const out = await result;
+  signal?.removeEventListener('abort', onAbort);
+  view.destroy(); // tallentaa luonnoksen ja kirjaa kirjoitusajan
+  await queue; // tallennukset valmiiksi ennen seuraavaa vaihetta
+  return out;
 }
 
 /* ---------- Tehtävälista ---------- */
@@ -121,12 +136,16 @@ function incomingBox(task, ctx) {
   );
 }
 
-async function mountTask(root, ctx, task) {
+/**
+ * Yksi tehtävä. opts.embedded = päivän session kirjoitusvaihe: ei paluulinkkiä eikä siirtymistä muualle;
+ * valmiiksi merkitseminen kutsuu onDone, ohittaminen onSkip.
+ */
+async function mountTask(root, ctx, task, { embedded = false, onDone, onSkip } = {}) {
   const drafts = await ctx.db.getKv('writeDrafts', {});
   const log = await ctx.db.getKv('writeLog', []);
   const state = summarizeLog(log);
   const unit = ctx.catalog.unitById(task.unit);
-  const following = nextTask(task, state);
+  const following = embedded ? null : nextTask(task, state);
 
   /* --- ajanmittaus: vain aktiivinen aika, tauot katkaistaan --- */
   let last = ctx.now();
@@ -228,6 +247,7 @@ async function mountTask(root, ctx, task) {
       delete all[task.id];
       await ctx.db.setKv('writeDrafts', all);
     });
+    if (embedded) return onDone?.(result); // sessio jatkuu seuraavaan vaiheeseen
     toast('Tehtävä on merkitty tehdyksi.');
     ctx.nav('write');
   };
@@ -257,6 +277,7 @@ async function mountTask(root, ctx, task) {
         ctx,
         onRevise: focusText,
         onDone: () => finish(result),
+        doneLabel: embedded ? 'Valmis, jatka' : 'Valmis',
         nextHref: following ? `#/write/${following.id}` : null,
         aiPanel: aiPanel.el,
       }),
@@ -317,10 +338,12 @@ async function mountTask(root, ctx, task) {
   document.addEventListener('visibilitychange', onHide);
   window.addEventListener('pagehide', onHide);
 
+  if (embedded) root.classList.add('write-step');
   root.append(
     ...nodes(
-      h('a', { class: 'btn link back', href: '#/write' }, '‹ Kaikki tehtävät'),
-      h('h1', {}, task.title),
+      embedded
+        ? [h('p', { class: 'eyebrow' }, 'Kirjoitus'), h('h2', { class: 'unit-h', id: 'w-title', tabindex: -1 }, task.title)]
+        : [h('a', { class: 'btn link back', href: '#/write' }, '‹ Kaikki tehtävät'), h('h1', {}, task.title)],
       h('p', { class: 'muted' }, [unit?.title, FORMAT_LABELS[task.format]].filter(Boolean).join(' · ')),
       h('section', { class: 'card', 'aria-labelledby': 'w-scn' }, h('h2', { id: 'w-scn' }, 'Tilanne'), h('p', {}, task.scenario), task.incoming ? incomingBox(task, ctx) : null),
       h(
@@ -349,11 +372,16 @@ async function mountTask(root, ctx, task) {
           h('button', { class: 'btn primary big', type: 'button', id: 'w-check', on: { click: runCheck } }, 'Tarkista'),
           h('button', { class: 'btn link', type: 'button', id: 'w-model', on: { click: showModel } }, 'Näytä mallivastaus ilman tarkistusta'),
           h('button', { class: 'btn link', type: 'button', id: 'w-clear', on: { click: clearText } }, 'Tyhjennä teksti'),
+          embedded ? h('button', { class: 'btn link', type: 'button', id: 'w-skip', on: { click: () => onSkip?.() } }, 'Ohita kirjoitus tänään') : null,
         ),
       ),
       out,
     ),
   );
+  if (embedded) {
+    announce(`Kirjoitus: ${task.title}`);
+    setTimeout(() => root.querySelector('#w-title')?.focus({ preventScroll: true }), 0);
+  }
 
   return {
     destroy() {

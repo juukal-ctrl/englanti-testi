@@ -18,7 +18,7 @@ export function mount(root, ctx) {
       h(
         'p',
         { class: 'muted' },
-        'Oppimisdata pysyy tällä laitteella. Tekoälypalaute (tulossa) lähettää vain kirjoittamasi tekstin valitsemallesi palveluntarjoajalle omalla avaimellasi.',
+        'Oppimisdata pysyy tällä laitteella. Valinnainen tekoälypalaute lähettää vain kirjoittamasi tekstin valitsemallesi palveluntarjoajalle omalla avaimellasi (Asetukset → Tekoälypalaute).',
       ),
       h('p', {}, h('a', { href: 'laitetesti/' }, 'Laitetesti'), ' · ', h('a', { href: 'https://github.com/juukal-ctrl/englanti-testi', target: '_blank', rel: 'noopener noreferrer' }, 'Lähdekoodi (GitHub)')),
       h('p', { class: 'muted' }, 'Kuvakkeet: Material Design Icons, Apache-lisenssi 2.0.'),

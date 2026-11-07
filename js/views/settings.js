@@ -55,7 +55,13 @@ export async function mount(root, ctx, params = []) {
       'section',
       { class: 'card' },
       h('h2', {}, 'Oppiminen'),
-      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), 'Tavoiteaika: ensin kertaus, sitten uusia ilmauksia ja lopuksi puheharjoitus. Jos etenet nopeasti, sessio päättyy aiemmin; "lisää"-painike jatkaa.', 's-min'),
+      field('Session pituus', select(ctx, 'sessionMinutes', 's-min', [[10, '10 min'], [15, '15 min'], [20, '20 min'], [30, '30 min']]), 'Tavoiteaika: ensin kertaus, sitten uusia ilmauksia, tarvittaessa kirjoitus ja lopuksi puheharjoitus. Jos etenet nopeasti, sessio päättyy aiemmin; "lisää"-painike jatkaa.', 's-min'),
+      field(
+        'Kirjoitus päivän sessiossa',
+        select(ctx, 'writeEvery', 's-write', [[2, 'Joka toinen päivä'], [1, 'Joka päivä'], [3, 'Joka kolmas päivä'], [0, 'Ei sessiossa']]),
+        'Yksi lyhyt työviesti vie noin 5–6 minuuttia, joten kirjoituspäivänä uusia ilmauksia ehtii vähemmän. Tehtävä valitaan opittujen ilmausten mukaan. Kirjoita-tehtäviä voi aina tehdä myös erikseen etusivun lisäharjoituksista.',
+        's-write',
+      ),
       field(
         'Uusia ilmauksia päivässä (enintään)',
         range(ctx, 'newMax', { id: 's-new', min: 0, max: 20, step: 1, format: (v) => String(v) }),

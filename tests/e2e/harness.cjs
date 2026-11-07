@@ -112,7 +112,7 @@ window.__kind = () => {
   const box = document.querySelector('.runner-box');
   if (!box) return 'none';
   const eb = (box.querySelector('.eyebrow') || {}).textContent;
-  const map = { 'Uusi aihe': 'intro', 'Uusi ilmaus': 'teach', 'Täydennä lause': 'choose', 'Muista merkitys': 'flip-rec', 'Sano englanniksi': 'flip-prod', 'Kirjoita englanniksi': 'flip-prod', 'Kuuntele ja sano perässä': 'shadow' };
+  const map = { 'Uusi aihe': 'intro', 'Uusi ilmaus': 'teach', 'Täydennä lause': 'choose', 'Muista merkitys': 'flip-rec', 'Sano englanniksi': 'flip-prod', 'Kirjoita englanniksi': 'flip-prod', 'Kuuntele ja sano perässä': 'shadow', 'Kirjoitus': 'write' };
   return map[eb] || ('unknown:' + eb);
 };
 window.__sig = () => {

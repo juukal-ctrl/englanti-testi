@@ -2,6 +2,9 @@ import { h } from '../util.js';
 import { nextNewItems } from '../content.js';
 import { dayTotals, summarize } from '../stats.js';
 import { fmtDay, fmtMinutes, dayToDate } from '../util.js';
+import { WRITING_TASKS } from '../../data/writing.js';
+import { summarizeLog } from '../plan.js';
+import { writingFor } from './session.js';
 
 const WEEKDAYS = ['sunnuntai', 'maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai'];
 
@@ -19,12 +22,14 @@ export async function mount(root, ctx) {
   const meta = await ctx.db.getKv('meta', {});
   const last = await ctx.db.getKv('lastSession', null);
   const activity = await ctx.db.getKv('activity', {});
+  const writeState = summarizeLog(await ctx.db.getKv('writeLog', []));
   const doneToday = last?.day === today;
 
   const due = srs.due(today).length;
   const allowedNew = Math.max(0, s.newMax - srs.introducedToday(today));
   const newAvailable = nextNewItems((id) => srs.isLearned(id), allowedNew).length;
   const sum = summarize([...srs.cards.values()], reviews, today);
+  const writing = doneToday ? null : await writingFor(ctx, s.sessionMinutes * 60000);
 
   root.append(h('h1', {}, 'Tänään'), h('p', { class: 'muted date' }, `${WEEKDAYS[date.getDay()]} ${date.getDate()}.${date.getMonth() + 1}.`));
 
@@ -36,7 +41,7 @@ export async function mount(root, ctx) {
       h(
         'ul',
         { class: 'plain' },
-        h('li', {}, 'Päivän sessio kestää noin 15 minuuttia: kertausta, uusia ilmauksia ja puhetta.'),
+        h('li', {}, 'Päivän sessio kestää noin 15 minuuttia ja sisältää kaiken: kertausta, uusia ilmauksia, välillä kirjoitusta ja puhetta.'),
         h('li', {}, 'Ilmaukset palaavat juuri ennen kuin ehdit unohtaa ne (FSRS-ajastus).'),
         h('li', {}, 'Kaikki tallentuu vain tähän laitteeseen. Ei tiliä, ei seurantaa.'),
       ),
@@ -63,9 +68,11 @@ export async function mount(root, ctx) {
     root.append(card);
   }
 
+  // Suunnitelma kertoo vaiheet siinä järjestyksessä, jossa sessio ne tekee.
   const plan = [];
   if (due > 0) plan.push(`Kertausta: ${plural(Math.min(due, 60), 'ilmaus', 'ilmausta')}`);
   if (newAvailable > 0) plan.push(`Uutta: enintään ${plural(newAvailable, 'ilmaus', 'ilmausta')}, sen mukaan kuin aikaa riittää`);
+  if (writing) plan.push(`Kirjoitus: ${writing.task.title} (noin ${Math.round(writing.ms / 60000)} min)`);
   plan.push('Puhetta: loppuajan, 3–8 lausetta');
 
   const hero = h('section', { class: 'card hero', 'aria-labelledby': 'plan-h' });
@@ -83,16 +90,26 @@ export async function mount(root, ctx) {
   }
   root.append(hero);
 
-  const quick = h('div', { class: 'tiles' });
-  quick.append(
-    tile('#/review', 'Pelkkä kertaus', due ? `${due} erääntynyttä` : 'ei erääntyneitä'),
-    tile('#/speak', 'Puhu', 'kuuntele ja sano perässä'),
-    tile('#/write', 'Kirjoita', 'lyhyt työviesti ja palaute'),
-    tile('#/lessons', 'Valitse aihe', `${ctx.catalog.units.length} aihetta`),
+  // Päivän sessio kattaa kaiken; erilliset harjoitukset ovat vain vapaaehtoista lisäharjoitusta.
+  root.append(
+    h(
+      'details',
+      { class: 'model extras', id: 'extras' },
+      h('summary', {}, 'Lisäharjoitusta (vapaaehtoinen)'),
+      h('p', { class: 'help' }, 'Päivän sessio sisältää jo kertauksen, uudet ilmaukset, kirjoituksen ja puheen. Nämä ovat lisiä, jos haluat harjoitella vielä.'),
+      h(
+        'div',
+        { class: 'tiles' },
+        tile('#/review', 'Pelkkä kertaus', due ? `${due} erääntynyttä` : 'ei erääntyneitä'),
+        tile('#/speak', 'Puhu', 'kuuntele ja sano perässä'),
+        tile('#/write', 'Kirjoita', 'valitse tehtävä itse'),
+        tile('#/lessons', 'Valitse aihe', `${ctx.catalog.units.length} aihetta`),
+      ),
+    ),
   );
-  root.append(quick);
 
   const upcoming = sum.forecast.slice(1).find((d) => d.n > 0);
+  const writtenCount = WRITING_TASKS.filter((t) => writeState.get(t.id)?.done).length;
   root.append(
     h(
       'section',
@@ -103,6 +120,7 @@ export async function mount(root, ctx) {
         { class: 'facts' },
         fact('Opittuja ilmauksia', `${sum.learned} / ${ctx.catalog.items.length}`),
         fact('Muistettavissa nyt (arvio)', sum.avgRecall == null ? '–' : `${Math.round(sum.avgRecall * 100)} %`),
+        fact('Kirjoitustehtäviä tehty', `${writtenCount} / ${WRITING_TASKS.length}`),
         fact('Seuraava kertaus', upcoming ? `${fmtDay(upcoming.day, today)} (${upcoming.n})` : due ? 'nyt' : '–'),
       ),
     ),

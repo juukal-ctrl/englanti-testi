@@ -112,9 +112,9 @@ export function renderModelCard(task, ctx, { onWrite }) {
 
 /**
  * Koko palautekortti. Palauttaa elementin; actions-kentät ovat kutsujan hoidettavia.
- * opts: { ctx, onRevise, onDone, nextHref, aiPanel } (aiPanel: valinnainen tekoälypalautteen elementti)
+ * opts: { ctx, onRevise, onDone, doneLabel, nextHref, aiPanel } (aiPanel: valinnainen tekoälypalautteen elementti)
  */
-export function renderFeedback(task, text, result, { ctx, onRevise, onDone, nextHref, aiPanel = null }) {
+export function renderFeedback(task, text, result, { ctx, onRevise, onDone, doneLabel = 'Valmis', nextHref, aiPanel = null }) {
   const verdict = verdictOf(result);
   const strengths = strengthsOf(task, result);
   const lengthLabel = result.length === 'short' ? 'liian lyhyt' : result.length === 'long' ? 'liian pitkä' : 'sopiva';
@@ -148,7 +148,7 @@ export function renderFeedback(task, text, result, { ctx, onRevise, onDone, next
   const modelBox = renderModelBox(task, ctx, { open: false });
 
   const reviseBtn = h('button', { class: 'btn primary big', type: 'button', id: 'w-revise', on: { click: () => onRevise?.() } }, 'Muokkaa ja tarkista uudelleen');
-  const doneBtn = h('button', { class: 'btn', type: 'button', id: 'w-done', on: { click: () => onDone?.() } }, 'Valmis');
+  const doneBtn = h('button', { class: 'btn', type: 'button', id: 'w-done', on: { click: () => onDone?.() } }, doneLabel);
   const nextLink = nextHref ? h('a', { class: 'btn link', href: nextHref }, 'Seuraava tehtävä') : null;
 
   const card = h(

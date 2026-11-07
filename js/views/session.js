@@ -1,15 +1,24 @@
-// Päivän sessio: kertaus → uutta → puhe → yhteenveto. Sessio on aikarajattu: uusia ilmauksia otetaan niin paljon
-// kuin aikaan mahtuu (päivärajaan asti), ja loppuaika käytetään puheharjoitukseen.
+// Päivän sessio: kertaus → uutta → kirjoitus (joka toisena päivänä) → puhe → yhteenveto. Kaikki harjoitukset ovat tämän
+// yhden session sisällä. Sessio on aikarajattu: uusia ilmauksia otetaan niin paljon kuin aikaan mahtuu (päivärajaan
+// asti), kirjoitukselle ja puheelle varataan aikaa etukäteen, ja loppuaika käytetään puheharjoitukseen.
 
 import { h, clear, fmtMinutes, fmtDay, clamp } from '../util.js';
 import { nextNewItems } from '../content.js';
 import { runTasks, reviewTasks, newContentTasks, shadowTasks } from '../runner.js';
 import { summarize } from '../stats.js';
+import { planBudgets, planWriting, SHADOW_TASK_MS } from '../plan.js';
+import { runWriting } from './write.js';
 
-export const REVIEW_SHARE = 0.45; // kertaus saa enintään tämän osuuden ajasta, jotta uutta ehtii aina
-export const SPEAK_RESERVE_MS = 3 * 60000; // puheharjoitukselle varattu loppuaika
-export const CHUNK_RESERVE_MS = 2.5 * 60000; // uutta ryhmää ei aloiteta, ellei sille jää tämän verran aikaa
-export const SHADOW_TASK_MS = 30000; // arvio yhden puhetehtävän kestosta
+/**
+ * Päivän kirjoitusosio ({ task, ms }) tai null, jos tänään ei kirjoiteta (asetus, vuoro, ei sopivaa tehtävää tai ei tilaa).
+ * Sama laskenta ohjaa sekä Tänään-näkymän suunnitelmaa että sessiota.
+ */
+export async function writingFor(ctx, totalMs) {
+  const every = ctx.settings().writeEvery;
+  if (!(every >= 1)) return null;
+  const [log, drafts] = await Promise.all([ctx.db.getKv('writeLog', []), ctx.db.getKv('writeDrafts', {})]);
+  return planWriting({ every, today: ctx.srs.today(), log, drafts, isLearned: (id) => ctx.srs.isLearned(id), totalMs });
+}
 
 export async function mount(root, ctx, params = []) {
   const extra = params[0] === 'extra';
@@ -17,17 +26,17 @@ export async function mount(root, ctx, params = []) {
   const s = ctx.settings();
   const now = () => (ctx.now ? ctx.now() : performance.now());
   const total = s.sessionMinutes * 60000;
+  const writing = extra ? null : await writingFor(ctx, total); // lisäsessioon ei kuulu kirjoitusta
+  const budget = planBudgets(total, writing?.ms ?? 0);
   const t0 = now();
   const elapsed = () => now() - t0;
-  const result = { reviewed: 0, again: 0, learned: 0, known: 0, speak: [], quit: false };
-  const speakReserve = Math.min(SPEAK_RESERVE_MS, total * 0.2);
-  const chunkReserve = Math.min(CHUNK_RESERVE_MS, total * 0.25);
+  const result = { reviewed: 0, again: 0, learned: 0, known: 0, speak: [], wrote: null, skippedWrite: false, quit: false };
 
   (async () => {
     // 1. Kertaus
     const rt = reviewTasks(ctx, 60);
     if (rt.length) {
-      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: total * REVIEW_SHARE, signal: ac.signal });
+      const st = await runTasks(ctx, root, rt, { title: 'Kertaus', budgetMs: budget.reviewMs, signal: ac.signal });
       result.reviewed += st.graded;
       result.again += st.again;
       if (st.ended === 'quit') return finish(true);
@@ -35,16 +44,17 @@ export async function mount(root, ctx, params = []) {
 
     // 2. Uudet ilmaukset: ryhmä kerrallaan, kunnes aika tai päiväraja tulee vastaan.
     // "Osaan jo" -ilmaukset eivät kuluta päivän rajaa, joten niiden jälkeen otetaan lisää.
+    // Kirjoitukselle ja puheelle varattu aika jätetään pois.
     const today = ctx.srs.today();
     let allowed = extra ? s.newMax : Math.max(0, s.newMax - ctx.srs.introducedToday(today));
     let handled = 0;
     const handledMax = Math.max(allowed * 2, allowed + 6); // varmuus: ei loputonta ohittelua
     while (allowed > 0 && handled < handledMax && !ac.signal.aborted) {
-      const left = total - speakReserve - elapsed();
-      if (left < chunkReserve) break;
+      const left = total - budget.speakReserveMs - budget.writeReserveMs - elapsed();
+      if (left < budget.chunkReserveMs) break;
       const items = nextNewItems((id) => ctx.srs.isLearned(id), allowed);
       if (!items.length) break;
-      const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: 'Uutta', budgetMs: left, reserveMs: chunkReserve, signal: ac.signal });
+      const st = await runTasks(ctx, root, newContentTasks(ctx, items), { title: 'Uutta', budgetMs: left, reserveMs: budget.chunkReserveMs, signal: ac.signal });
       result.learned += st.taught;
       result.known += st.known;
       result.again += st.again;
@@ -55,12 +65,20 @@ export async function mount(root, ctx, params = []) {
       if (st.ended === 'time' || st.taught + st.known === 0) break;
     }
 
-    // 3. Puhe: jäljellä oleva aika, 3–8 lausetta
+    // 3. Kirjoitus: yksi lyhyt työviesti, kun sen vuoro on. Valmis tehtävä tai ohitus jatkaa puheeseen.
+    if (writing && !ac.signal.aborted) {
+      const w = await runWriting(ctx, root, writing.task, { signal: ac.signal });
+      if (w.ended === 'quit') return finish(true);
+      if (w.ended === 'complete') result.wrote = { id: writing.task.id, title: writing.task.title, words: w.words };
+      else result.skippedWrite = true;
+    }
+
+    // 4. Puhe: jäljellä oleva aika, 3–8 lausetta
     const remaining = Math.max(0, total - elapsed());
     const n = clamp(Math.round(remaining / SHADOW_TASK_MS), 3, 8);
     const st = await runTasks(ctx, root, shadowTasks(ctx, n), {
       title: 'Puhe',
-      budgetMs: Math.max(speakReserve, remaining),
+      budgetMs: Math.max(budget.speakReserveMs, remaining),
       signal: ac.signal,
     });
     result.speak.push(...st.speak);
@@ -73,7 +91,14 @@ export async function mount(root, ctx, params = []) {
     result.quit = quit;
     const ms = elapsed();
     if (!quit) {
-      await ctx.db.setKv('lastSession', { day: ctx.srs.today(), ts: Date.now(), ms, reviewed: result.reviewed, learned: result.learned });
+      await ctx.db.setKv('lastSession', {
+        day: ctx.srs.today(),
+        ts: Date.now(),
+        ms,
+        reviewed: result.reviewed,
+        learned: result.learned,
+        wrote: result.wrote?.id ?? null,
+      });
     }
     if (quit) {
       ctx.nav('today');
@@ -104,10 +129,12 @@ export async function renderSummary(root, ctx, result, ms, { title = 'Valmis' } 
         stat('Kertasit', `${result.reviewed ?? 0}`),
         stat('Opit uutta', `${result.learned ?? 0}`),
         result.known ? stat('Osasit jo', `${result.known}`) : null,
+        result.wrote ? stat('Kirjoitit', `${result.wrote.title} (${result.wrote.words} sanaa)`) : null,
         stat('Puheharjoituksen täsmäys', avgSpeak == null ? '–' : `${avgSpeak} %`),
         stat('Seuraava kertaus', next ? `${fmtDay(next.day, today)} (${next.n})` : '–'),
       ),
       result.again ? h('p', { class: 'muted' }, `${result.again} ilmausta palaa pian kertaukseen. Se on normaalia: juuri ne jäävät mieleen.`) : null,
+      result.skippedWrite ? h('p', { class: 'muted' }, 'Ohitit kirjoituksen. Se tarjotaan uudelleen seuraavassa päivän sessiossa.') : null,
       h(
         'div',
         { class: 'actions' },
