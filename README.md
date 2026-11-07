@@ -127,14 +127,20 @@ erääntynyt eikä uutta ole, harjoitellaan kahta pisimpään harjoittelematta o
 mahtuu kolme uutta kappaletta (uusi kappale kestää noin 5 min). Yhteenvedon "N min lisää" -painike koostaa uuden oppitunnin samoilla
 säännöillä. Harjoitteluaika kirjautuu päivän harjoitteluaikaan (yksi kierros tai vaihe lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
 
-**Mitä tutkimus tukee ja mitä ei.** Vaiheiden järjestys (kuuntele, ymmärrä, toista tekstin kanssa, toista ilman tekstiä) on
-shadowing-tutkimuksen vakiintunut kulku (Hamada; Kadota ja Tamai). Hyöty tasaantuu muutaman toiston jälkeen samassa istunnossa
-(Shiki ym. 2010: noin 4–5 toistoa), joten kappale ei toistu yhdessä istunnossa loputtomiin vaan palaa myöhemmin. Materiaalin
-kuuluu olla helppoa ja tuttua sisällöltään (Kadota 2007), siksi kappaleet ovat arkisia B2-tasoon sopivia työtilanteita. Oman puheen
-nauhoittaminen ja kuuntelu on parantanut tutkimuksissa ymmärrettävyyttä ja sujuvuutta, mutta ei sitä, kuinka vahvalta
-aksentti kuulostaa (Foote ja McDonough 2017). Katsauksen (Whitworth 2024) mukaan hyöty näkyy sujuvuudessa ja prosodiassa, ja
-yksittäisten äänteiden osalta näyttö on epäselvää. Hamadan mukaan shadowing ei myöskään ole puhumisen harjoitus: sillä ei opi
-sanomaan omia ajatuksiaan, joten se täydentää päivän sessiota eikä korvaa sitä. Alle sekunnin viive ja kuulokkeet ovat
+**Mitä tutkimus tukee ja mitä ei.** Vaiheiden järjestys (kuuntele, ymmärrä, toista tekstin kanssa, toista ilman tekstiä) perustuu
+japanilaisessa englanninopetuksessa kehitettyyn shadowing-ohjelmaan (Kadota ja Tamai 2005), jota Hamada (2012) on soveltanut ja
+kuvannut kuuntelun harjoitteena. Hänen ohjelmassaan shadowing tehdään ydinvaiheessa kolme kertaa ja yhdistetään lukemiseen ja
+ymmärtämisen tarkistukseen, koska pelkkä shadowing ei riitä. Toistojen määrästä: Shiki ym. (2010; 48 yliopisto-opiskelijaa)
+havaitsivat, että neljä tai viisi toistoa riitti nostamaan toistettujen sanojen osuuden lähelle huippua. Siksi kappale ei toistu
+yhdessä istunnossa loputtomiin vaan palaa myöhemmin. Tulos koskee toistettujen sanojen osuutta, ei pitkäaikaista oppimista.
+Materiaalin vaikeudesta: Hamadan mukaan yleinen suositus on oppijan tasoa helpompi materiaali (i−1 tai alle), mutta hänen omassa
+kokeessaan helpomman ja haastavamman materiaalin vuorottelu toimi tasaista vaikeustasoa paremmin. Siksi kappaleet ovat nyt
+arkisia, B2+-tasolle helppoja työtilanteita, ja vaativampaa sisältöä lisätään myöhemmin. Oman puheen nauhoittaminen ja kuuntelu:
+Foote ja McDonough (2017; 16 oppijaa, 8 viikkoa) havaitsivat, että shadowing nauhoituksineen paransi ymmärrettävyyttä, sujuvuutta
+ja mallin jäljittelyä, mutta ei sitä, kuinka vahvalta aksentti kuulostaa. Whitworthin (2024; Oxfordin maisterintutkielma,
+systemaattinen katsaus 44 tutkimukseen) mukaan shadowing voi auttaa sujuvuudessa ja prosodiassa, ja yksittäisten äänteiden osalta
+näyttö on epäselvää. Koska shadowingissa toistetaan toisen sanoja, sillä ei harjoitella omien ajatusten sanomista. Se täydentää
+päivän sessiota eikä korvaa sitä; tämä on sovelluksen oma päätelmä, ei tutkimustulos. Alle sekunnin viive ja kuulokkeet ovat
 käytännön ohjeita, eivät tutkimustuloksia.
 
 **Rajat.**
@@ -345,7 +351,7 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 - FSRS-algoritmi: [open-spaced-repetition](https://github.com/open-spaced-repetition) (FSRS-6, oletuspainot).
 - Kuvakkeet: Material Design Icons, Apache-lisenssi 2.0.
-- Shadowing-menetelmä: Hamada (shadowingin vaiheet ja rajat), Kadota ja Tamai (japanilaisten englanninoppijoiden shadowing-ohjelma), Kadota 2007 (materiaalin vaikeustaso), Shiki ym. 2010 (toistojen määrä), Foote ja McDonough 2017 (nauhoitus ja itsearviointi), Whitworth 2024 (katsaus ääntämisvaikutuksista). Kohdat on tiivistetty, ja ne kannattaa tarkistaa alkuperäisistä lähteistä, jos tarkkuudella on väliä.
+- Shadowing-menetelmä: Hamada 2012, [An effective way to improve listening skills through shadowing](https://jalt-publications.org/sites/default/files/pdf-article/36.1-art1.pdf), The Language Teacher 36(1) (vaiheet, kolme toistoa, materiaalin vaikeus; perustuu Kadotan ja Tamain ohjelmaan 2005); Shiki, Mori, Kadota ja Yoshida 2010, [Exploring Differences Between Shadowing and Repeating Practices](https://www.jstage.jst.go.jp/article/arele/21/0/21_KJ00007108612/_article), ARELE 21 (toistojen määrä); Foote ja McDonough 2017 (nauhoitus ja itsearviointi; tulokset samat kuin Footen väitöskirjan [kolmannessa tutkimuksessa](https://core.ac.uk/download/211518436.pdf)); Whitworth 2024, [Shadowing for pronunciation: a systematic review](https://ora.ox.ac.uk/objects/uuid:3104cae1-3a6b-400a-b173-de44384238d2), Oxfordin yliopiston maisterintutkielma. Kohdat on tiivistetty tiivistelmistä ja ne kannattaa tarkistaa alkuperäisistä lähteistä, jos tarkkuudella on väliä.
 - Äänet: [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-lisenssi 2.0; mallin kuvauksen mukaan koulutettu pelkästään
   sallitulla tai tekijänoikeudettomalla äänidatalla). Generointi käyttää Actionsissa kirjastoja kokoro ja misaki (Apache 2.0),
   espeak-ng:tä (GPL, vain työkaluna ääntämisen varasanakirjana) ja ffmpegiä (Opus-koodaus). Sovelluksen mukana jaetaan vain
