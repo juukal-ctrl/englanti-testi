@@ -49,7 +49,7 @@ async function runSessionTests({ base, check, out = '/tmp/e2e-out' }) {
     page.evaluate(() => ({
       line: document.querySelector('.steps-line')?.textContent ?? null,
       time: document.querySelector('.steps-time')?.textContent ?? null,
-      steps: [...document.querySelectorAll('.steps .step')].map((li) => ({ label: li.querySelector('.step-label')?.textContent.replace(/\s+/g, ' ').trim(), cls: li.className.replace('step ', ''), current: li.getAttribute('aria-current') })),
+      steps: [...document.querySelectorAll('.stepper .step')].map((li) => ({ label: li.querySelector('.step-label')?.textContent.replace(/\s+/g, ' ').trim(), cls: li.className.replace('step ', ''), current: li.getAttribute('aria-current') })),
       title: document.querySelector('.runner-title')?.textContent,
     }));
   const taskInfo = (id) =>

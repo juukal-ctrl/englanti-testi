@@ -246,8 +246,9 @@ function playUrl(url, { rate, onStart }) {
 /**
  * Toistaa tekstit peräkkäin leikkeinä. Palauttaa toiston tuloksen { ok, kind } tai null, jos leikkeitä ei voitu käyttää
  * (silloin kutsuja lukee tekstit laitteen äänellä). alive() kertoo, onko toisto yhä ajankohtainen.
+ * onStart kutsutaan, kun ensimmäinen leike alkaa; onPart(i) jokaisen leikkeen alkaessa (esim. lauseen korostukseen).
  */
-export async function playClips(parts, { slow = false, userRate = DEFAULT_RATE, pauseMs = 450, alive = () => true, onStart } = {}) {
+export async function playClips(parts, { slow = false, userRate = DEFAULT_RATE, pauseMs = 450, alive = () => true, onStart, onPart } = {}) {
   const m = await loadManifest();
   if (!alive()) return { ok: true, kind: 'stopped' };
   if (!m) return null;
@@ -270,6 +271,7 @@ export async function playClips(parts, { slow = false, userRate = DEFAULT_RATE, 
       rate: clamp(base * found[i].rate, 0.5, 2),
       onStart: () => {
         if (stats.played.length < 500) stats.played.push(found[i].id);
+        onPart?.(i);
         if (i === 0) onStart?.();
       },
     });

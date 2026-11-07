@@ -8,6 +8,8 @@ export const DEFAULT_SETTINGS = Object.freeze({
   newMax: 12, // uusien ilmausten yläraja päivässä; sessio ottaa niitä niin paljon kuin aikaan mahtuu
   sessionMinutes: 15, // ydinsession pituus
   writeEvery: 2, // kirjoitus päivän sessiossa: 0 = ei lainkaan, 1 = joka päivä, 2 = joka toinen päivä, 3 = joka kolmas päivä
+  shadowMinutes: 15, // shadowing-oppitunnin pituus (toinen oppitunti päivän session lisäksi)
+  shadowRecord: true, // shadowingissa tarjotaan valinnainen nauhoitusvaihe
   voiceURI: '', // tyhjä = automaattinen valinta
   rate: 0.85, // puhenopeus
   theme: 'auto', // auto | light | dark
@@ -26,6 +28,8 @@ const RULES = {
   newMax: { type: 'int', min: 0, max: 30 },
   sessionMinutes: { type: 'int', min: 5, max: 60 },
   writeEvery: { type: 'enum', values: [0, 1, 2, 3] },
+  shadowMinutes: { type: 'int', min: 5, max: 30 },
+  shadowRecord: { type: 'bool' },
   voiceURI: { type: 'string', max: 200 },
   rate: { type: 'number', min: 0.6, max: 1.3 },
   theme: { type: 'enum', values: ['auto', 'light', 'dark'] },

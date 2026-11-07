@@ -22,6 +22,7 @@ import * as progress from './views/progress.js';
 import * as settingsView from './views/settings.js';
 import * as writeView from './views/write.js';
 import * as installView from './views/install.js';
+import * as shadowView from './views/shadow.js';
 import { repairApp } from './repair.js';
 
 const ROUTES = {
@@ -32,6 +33,7 @@ const ROUTES = {
   lesson: { view: lessons, nav: 'lessons', focus: true },
   speak: { view: speakView, nav: 'speak' },
   write: { view: writeView, nav: 'today' },
+  shadow: { view: shadowView, nav: 'today', focus: true },
   more: { view: more, nav: 'more' },
   vocab: { view: vocab, nav: 'more' },
   progress: { view: progress, nav: 'more' },

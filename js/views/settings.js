@@ -6,6 +6,7 @@ import { clipSummary, prefetchAll } from '../clips.js';
 import { VOICE_TEST_TEXT } from '../speakable.js';
 import { DEFAULT_SETTINGS } from '../settings.js';
 import { WRITING_TASKS } from '../../data/writing.js';
+import { SHADOW_PASSAGES } from '../../data/shadow.js';
 import { aiCard } from './settings-ai.js';
 
 const MAX_IMPORT_BYTES = 30 * 1024 * 1024;
@@ -74,6 +75,21 @@ export async function mount(root, ctx, params = []) {
         'Todennäköisyys, jolla muistat ilmauksen kertaushetkellä. 90 % on hyvä oletus. Korkeampi tavoite tarkoittaa enemmän kertauksia.',
         's-ret',
       ),
+    ),
+  );
+
+  root.append(
+    h(
+      'section',
+      { class: 'card' },
+      h('h2', {}, 'Shadowing'),
+      field(
+        'Oppitunnin pituus',
+        select(ctx, 'shadowMinutes', 's-shadow-min', [[10, '10 min'], [15, '15 min'], [20, '20 min']]),
+        'Toinen oppitunti päivän session lisäksi: puhut englantia samaan aikaan äänen kanssa. Oppitunti koostuu kertauksista ja uusista kappaleista, ja se päättyy, kun aika on täynnä.',
+        's-shadow-min',
+      ),
+      toggle(ctx, 'shadowRecord', 's-shadow-rec', 'Tarjoa nauhoitusvaihe', 'Voit nauhoittaa toistosi ja verrata sitä malliin. Nauhoitus pysyy vain muistissa eikä tallennu mihinkään. Vaihe on aina ohitettavissa.'),
     ),
   );
 
@@ -181,10 +197,11 @@ export async function mount(root, ctx, params = []) {
       return toast('Tiedostoa ei voitu lukea JSON-muodossa.');
     }
     const v = validateBackup(data);
+    const shadowCount = Object.keys(v.shadowLog ?? {}).length;
     if (!v.ok) return toast(`${v.errors.map((e) => String(e).replace(/[.\s]+$/, '')).join('. ')}.`, { ms: 7000 });
     const mode = await choiceDialog({
       title: 'Tuodaanko varmuuskopio?',
-      body: `Tiedostossa on ${v.cards.length} korttia ja ${v.reviews.length} kertaustapahtumaa. Yhdistäminen säilyttää nykyiset tiedot ja lisää uudemmat. Korvaaminen poistaa nykyiset tiedot ensin.`,
+      body: `Tiedostossa on ${v.cards.length} korttia ja ${v.reviews.length} kertaustapahtumaa${shadowCount ? ` sekä edistyminen ${shadowCount} shadowing-kappaleesta` : ''}. Yhdistäminen säilyttää nykyiset tiedot ja lisää uudemmat. Korvaaminen poistaa nykyiset tiedot ensin.`,
       choices: [
         { label: 'Yhdistä nykyisiin', value: 'merge', kind: 'primary' },
         { label: 'Korvaa kaikki', value: 'replace', kind: 'danger' },
@@ -195,7 +212,7 @@ export async function mount(root, ctx, params = []) {
       const res = await importBackup(ctx.db, data, { mode });
       await ctx.srs.load();
       await ctx.reloadSettings();
-      toast(`Tuotu: ${res.cards} korttia, ${res.reviews} kertaustapahtumaa.`);
+      toast(`Tuotu: ${res.cards} korttia, ${res.reviews} kertaustapahtumaa${res.shadow ? `, ${res.shadow} shadowing-kappaletta` : ''}.`);
       ctx.nav('today');
     } catch (e) {
       toast(`Tuonti epäonnistui: ${e.message}`, { ms: 7000 });
@@ -218,7 +235,7 @@ export async function mount(root, ctx, params = []) {
   wipeBtn.addEventListener('click', async () => {
     const ok = await confirmDialog({
       title: 'Poistetaanko kaikki tiedot?',
-      body: 'Kaikki kortit, kertaushistoria ja asetukset poistetaan tästä laitteesta. Tätä ei voi perua. Lataa ensin varmuuskopio, jos haluat säilyttää edistymisesi.',
+      body: 'Kaikki kortit, kertaushistoria, shadowing-edistyminen ja asetukset poistetaan tästä laitteesta. Tätä ei voi perua. Lataa ensin varmuuskopio, jos haluat säilyttää edistymisesi.',
       confirmText: 'Poista kaikki',
       danger: true,
     });
@@ -235,7 +252,7 @@ export async function mount(root, ctx, params = []) {
       { class: 'card' },
       h('h2', {}, 'Tiedot ja varmuuskopio'),
       h('p', {}, `Tallessa: ${est.cards} korttia, ${est.reviews} kertaustapahtumaa. Tallennus: ${ctx.db.kind === 'idb' ? 'selaimen tietokanta' : 'vain muisti (ei pysyvä)'}${ctx.persisted ? ', pysyväksi merkitty' : ''}.`),
-      h('p', { class: 'help' }, 'Varmuuskopio sisältää oppimisdatan ja asetukset. Se ei sisällä API-avaimia. Ota varmuuskopio ennen kuin vaihdat puhelinta tai tyhjennät selaimen tietoja.'),
+      h('p', { class: 'help' }, 'Varmuuskopio sisältää kortit, kertaushistorian, shadowing-edistymisen ja asetukset. Se ei sisällä API-avaimia eikä kirjoitusluonnoksia. Ota varmuuskopio ennen kuin vaihdat puhelinta, asennat sovelluksen uudelleen tai tyhjennät selaimen tietoja.'),
       h('div', { class: 'actions row wrap' }, exportBtn, h('button', { class: 'btn', type: 'button', on: { click: () => fileInput.click() } }, 'Tuo varmuuskopio'), fileInput),
       h('div', { class: 'actions' }, wipeBtn),
     ),
@@ -243,7 +260,7 @@ export async function mount(root, ctx, params = []) {
       'section',
       { class: 'card' },
       h('h2', {}, 'Tietoja'),
-      h('p', { class: 'help', id: 'about' }, `Versio ${ctx.version}${build ? ` (${build})` : ''}. Sisältö: ${ctx.catalog.items.length} ilmausta, ${ctx.catalog.units.length} aihetta, ${WRITING_TASKS.length} kirjoitustehtävää.`),
+      h('p', { class: 'help', id: 'about' }, `Versio ${ctx.version}${build ? ` (${build})` : ''}. Sisältö: ${ctx.catalog.items.length} ilmausta, ${ctx.catalog.units.length} aihetta, ${WRITING_TASKS.length} kirjoitustehtävää, ${SHADOW_PASSAGES.length} shadowing-kappaletta.`),
     ),
     h(
       'section',

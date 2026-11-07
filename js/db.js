@@ -2,6 +2,7 @@
 // Mitään ei lähetetä verkkoon. Varmuuskopio on tavallinen JSON-tiedosto.
 
 import { sanitizeSettings } from './settings.js';
+import { cleanShadowLog, mergeShadowLogs } from './shadow.js';
 
 const DB_NAME = 'englanti-app';
 const DB_VERSION = 1;
@@ -71,6 +72,7 @@ export function validateBackup(data) {
   if (typeof data.schema !== 'number' || data.schema > BACKUP_SCHEMA) errors.push('Varmuuskopio on uudemmasta versiosta kuin tämä sovellus');
   if (!Array.isArray(data.cards)) errors.push('Korttitiedot puuttuvat');
   if (data.reviews !== undefined && !Array.isArray(data.reviews)) errors.push('Kertaushistoria on virheellinen');
+  if (data.shadowLog !== undefined && (!data.shadowLog || typeof data.shadowLog !== 'object' || Array.isArray(data.shadowLog))) errors.push('Shadowing-edistyminen on virheellinen');
   if (Array.isArray(data.cards) && data.cards.length > MAX_CARDS) errors.push('Liian monta korttia');
   if (Array.isArray(data.reviews) && data.reviews.length > MAX_REVIEWS) errors.push('Liian monta kertaustapahtumaa');
   if (errors.length) return { ok: false, errors };
@@ -100,6 +102,7 @@ export function validateBackup(data) {
     cards,
     reviews,
     settings: sanitizeSettings(data.settings),
+    shadowLog: data.shadowLog === undefined ? undefined : cleanShadowLog(data.shadowLog), // vanhoissa varmuuskopioissa ei ole
     skippedCards,
     skippedReviews,
   };
@@ -254,7 +257,7 @@ export async function openDb({ memory = false } = {}) {
 /* ---------- Vienti ja tuonti ---------- */
 
 export async function exportBackup(db, now = Date.now()) {
-  const [cards, reviews, settings] = await Promise.all([db.getAllCards(), db.getAllReviews(), db.getKv('settings', null)]);
+  const [cards, reviews, settings, shadowLog] = await Promise.all([db.getAllCards(), db.getAllReviews(), db.getKv('settings', null), db.getKv('shadowLog', {})]);
   return {
     app: BACKUP_APP,
     schema: BACKUP_SCHEMA,
@@ -263,6 +266,7 @@ export async function exportBackup(db, now = Date.now()) {
     settings: { ...sanitizeSettings(settings), rememberKey: false }, // avainten säilytys on laitekohtainen valinta
     cards,
     reviews,
+    shadowLog: cleanShadowLog(shadowLog), // shadowing-kappaleiden edistyminen (lisätty versiossa 0.7.0; skeema pysyy 1:nä, kenttä on valinnainen)
   };
 }
 
@@ -273,9 +277,14 @@ export async function exportBackup(db, now = Date.now()) {
 export async function importBackup(db, data, { mode = 'replace' } = {}) {
   const v = validateBackup(data);
   if (!v.ok) throw new Error(v.errors.join('. '));
+  const shadow = Object.keys(v.shadowLog ?? {}).length;
   if (mode === 'replace') {
-    await db.replaceAll({ cards: v.cards, reviews: v.reviews, kv: { settings: { ...v.settings, rememberKey: false } } });
-    return { cards: v.cards.length, reviews: v.reviews.length, skipped: v.skippedCards + v.skippedReviews };
+    const kv = { settings: { ...v.settings, rememberKey: false } };
+    // Vanhassa varmuuskopiossa ei ole shadowing-edistymistä: nykyinen säilytetään, jotta tuonti ei hävitä sitä.
+    const shadowLog = v.shadowLog ?? cleanShadowLog(await db.getKv('shadowLog', {}));
+    if (v.shadowLog || Object.keys(shadowLog).length) kv.shadowLog = shadowLog;
+    await db.replaceAll({ cards: v.cards, reviews: v.reviews, kv });
+    return { cards: v.cards.length, reviews: v.reviews.length, shadow, skipped: v.skippedCards + v.skippedReviews };
   }
   const [curCards, curReviews, curSettings] = await Promise.all([db.getAllCards(), db.getAllReviews(), db.getKv('settings', null)]);
   const byId = new Map(curCards.map((c) => [c.id, c]));
@@ -286,5 +295,6 @@ export async function importBackup(db, data, { mode = 'replace' } = {}) {
   // Yhdistäminen säilyttää nykyiset asetukset ja muun paikallisen tiedon (kirjoitusloki, luonnokset, päivän aika, avaimet).
   await db.replaceAll({ cards: [...byId.values()], reviews: [...curReviews, ...added] });
   if (!curSettings) await db.setKv('settings', { ...v.settings, rememberKey: false });
-  return { cards: byId.size, reviews: curReviews.length + added.length, skipped: v.skippedCards + v.skippedReviews };
+  if (shadow) await db.setKv('shadowLog', mergeShadowLogs(cleanShadowLog(await db.getKv('shadowLog', {})), v.shadowLog));
+  return { cards: byId.size, reviews: curReviews.length + added.length, shadow, skipped: v.skippedCards + v.skippedReviews };
 }

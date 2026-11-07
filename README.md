@@ -12,15 +12,16 @@ Sovellus, sisältö ja koodi on tehty Clauden avulla.
 
 - **Päivän sessio (aikarajattu, oletus 15 min):** kaikki harjoitukset yhden session ja yhden kellon takana: kertaus, uudet ilmaukset, joka toinen päivä lyhyt kirjoitustehtävä ja lopuksi puhe. Erillisiä harjoituksia on vain vapaaehtoisina lisinä etusivun "Lisäharjoitusta"-osiossa. Katso [Päivän sessio](#päivän-sessio).
 - **Kertaus FSRS-6-ajastuksella:** ilmaukset palaavat juuri ennen unohtamista. Tavoitesäilyvyys 90 % (säädettävä).
-- **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (shadowing).
+- **Harjoitustyypit:** opetus (kuuntele, lue, sano ääneen), aukkotehtävä, merkityksen muistaminen, englanniksi sanominen tai kirjoittaminen sekä kuuntele ja sano perässä (lyhyet lauseet session Puhe-vaihe).
 - **Puhe:** esiäänitetty Kokoro-ääni (luonnollinen painotus, myös hitaasti; toimii ilman verkkoa, kun äänet on ladattu laitteelle), laitteen oma puhesynteesi varana sekä puheentunnistus (sano). Tunnistus on apuväline, ei arvosana. Numerot hyväksytään kaikissa muodoissa (`3`, `third`, `three`). Katso [Äänet](#äänet-kokoro).
 - **Kirjoita:** lyhyet työviestit englanniksi (sähköposti, pikaviesti), osana päivän sessiota (oletuksena joka toinen päivä) tai erikseen lisäharjoituksista. Palaute tulee heti laitteella, ilman verkkoa: sääntötarkistus löytää tyypillisiä virheitä (prepositiot, päivämäärä- ja lukumuodot, amerikkalainen oikeinkirjoitus, kohteliaisuus, suomenkieliset sanat), näyttää puuttuvat asiat ja harjoiteltavat ilmaukset sekä antaa kuunneltavan mallivastauksen. Katso [Kirjoita](#kirjoita).
+- **Shadowing (toinen oppitunti, oletus 15 min):** päivän session lisäksi harjoitus, jossa toistat luonnollisia työ- ja arkipuheen kappaleita ääneen mallin kanssa samaan aikaan. Kappale kulkee kuuntelusta ja ymmärtämisestä toistoon tekstin kanssa ja ilman, ja palaa oman arviosi mukaan 1–30 päivän välein. Nauhoitus ja vertailu on valinnainen. Katso [Shadowing](#shadowing-toinen-oppitunti).
 - **Tekoälypalaute (valinnainen):** Kirjoita-tehtävän palautteeseen voi pyytää lisäksi Geminin tai Clauden arvion omalla API-avaimella: korjausehdotukset suomeksi selitettyinä, korjattu versio ja vinkki. Pyyntö lähtee vain painikkeesta. Katso [Tekoälypalaute](#tekoälypalaute-valinnainen).
 - **Sanasto, edistyminen, asetukset** sekä JSON-varmuuskopion vienti ja tuonti.
 - **Offline:** koko sovellus välimuistitetaan (service worker) ja toimii ilman verkkoa.
 - **Laitetesti:** vaiheen 0 mittaussivu on tallessa osoitteessa `/laitetesti/`.
 
-Sisältö on tällä hetkellä 12 aihetta, 126 ilmausta ja 12 kirjoitustehtävää. Katso [CONTENT.md](CONTENT.md).
+Sisältö on tällä hetkellä 12 aihetta, 126 ilmausta, 12 kirjoitustehtävää ja 24 shadowing-kappaletta. Katso [CONTENT.md](CONTENT.md).
 
 ## Päivän sessio
 
@@ -91,6 +92,75 @@ tällä laitteella. Ne eivät ole mukana varmuuskopiossa. Kirjoittamiseen käyte
 **Äänet:** mallivastausten ja saatujen viestien lauseet äänitetään samalla Kokoro-äänellä kuin muu sisältö
 (`tools/tts/texts.mjs` käyttää samaa lauseisiin jakoa kuin sovellus, `speechParts`).
 
+## Shadowing (toinen oppitunti)
+
+Shadowing tarkoittaa, että toistat kuulemaasi englantia ääneen samaan aikaan, korkeintaan noin sekunnin jäljessä. Se harjoittaa
+ääntämistä, rytmiä, painotuksia ja sujuvuutta. Se **ei ole keskusteluharjoitus** eikä korvaa päivän sessiota, ja siksi se on
+oma, toinen oppituntinsa: Tänään-näkymässä päivän session alla on oma kortti (`#/shadow`), ja kesto on erikseen säädettävä
+(Asetukset → Shadowing: 10, 15 tai 20 min, oletus 15). Päivän sessio pysyy 15 minuutin kokonaisuutena.
+
+**Kulku (`js/shadow.js`, puhdas moduuli; yksikkötestit `tests/shadow.test.mjs`).** Uusi kappale (48–68 sanaa, 5–7 lausetta,
+noin 25 sekuntia) käydään läpi vaiheittain, ja jokaisen vaiheen alussa kerrotaan, mitä siinä tehdään:
+
+1. **Kuuntele** ×1, teksti piilossa: yritä ymmärtää, mistä on kyse.
+2. **Lue ja ymmärrä:** teksti ja suomennos lause lauseelta (jokaisen lauseen voi kuunnella napauttamalla), kolme avainsanaa ja yksi
+   ääntämisvinkki.
+3. **Lue mukana** ×1: teksti näkyy, ja äänessä oleva lause korostetaan.
+4. **Toista tekstin kanssa** ×3: puhu mallin kanssa samaan aikaan.
+5. **Toista ilman tekstiä** ×2 (teksti on piilossa, "Näytä teksti" paljastaa sen tarvittaessa).
+6. **Nauhoita ja vertaa** (valinnainen): nauhoitat yhden kierroksen ja kuuntelet mallin ja oman toistosi vuorotellen.
+7. **Miten sujui?** Hankalaa, kohtalaisesti tai sujui hyvin. Tämä arvio ajastaa kappaleen paluun.
+
+Kierroksen nopeuden voi valita (hidas 0,8 ×, normaali, nopea 1,15 × asetusten puhenopeudesta). Kertauskappale on lyhyempi: heikko
+kappale (vaihe alle 3 tai edellinen arvio ei "Sujui hyvin") toistetaan kerran tekstin kanssa ja kahdesti ilman, vahva kappale
+kahdesti ilman tekstiä nopeammin. Kappaleen saa pysäytettyä kesken kierroksen, ja kierroksen voi toistaa uudelleen.
+
+**Ajastus.** Kappaleen tila (`shadowLog`: vaihe, seuraava päivä, viimeisin arvio, kierrokset, harjoituskerrat) päivittyy arvion jälkeen:
+"Sujui hyvin" nostaa vaihetta ja kappale palaa välein 1, 3, 7, 14 ja 30 päivää; "Kohtalaisesti" pitää vaiheen ja lyhentää väliä
+yhdellä askeleella; "Hankalaa" laskee vaihetta ja tuo kappaleen huomiseksi. Uusi kappale palaa aina huomenna. Vaihe 5 tarkoittaa
+opittua. Yksinkertainen porrastettu väli riittää tähän, koska tavoite on rytmin ja sujuvuuden harjoittelu eikä yksittäisten
+ilmausten muistaminen (sitä varten on FSRS).
+
+**Oppitunnin kokoaminen (`planLesson`).** Ensin enintään kolme erääntynyttä kertausta (vanhimmat ja heikoimmat ensin), sitten uusia
+kappaleita järjestyksessä, kunnes aikabudjetti (kesto + 90 s) tulee vastaan; vähintään yksi kappale tulee aina. Jos mitään ei ole
+erääntynyt eikä uutta ole, harjoitellaan kahta pisimpään harjoittelematta ollutta kappaletta. Tyhjällä historialla 15 minuuttiin
+mahtuu kolme uutta kappaletta (uusi kappale kestää noin 5 min). Yhteenvedon "N min lisää" -painike koostaa uuden oppitunnin samoilla
+säännöillä. Harjoitteluaika kirjautuu päivän harjoitteluaikaan (yksi kierros tai vaihe lasketaan enintään 90 sekuntia, jotta tauko ei kerrytä aikaa).
+
+**Mitä tutkimus tukee ja mitä ei.** Vaiheiden järjestys (kuuntele, ymmärrä, toista tekstin kanssa, toista ilman tekstiä) on
+shadowing-tutkimuksen vakiintunut kulku (Hamada; Kadota ja Tamai). Hyöty tasaantuu muutaman toiston jälkeen samassa istunnossa
+(Shiki ym. 2010: noin 4–5 toistoa), joten kappale ei toistu yhdessä istunnossa loputtomiin vaan palaa myöhemmin. Materiaalin
+kuuluu olla helppoa ja tuttua sisällöltään (Kadota 2007), siksi kappaleet ovat arkisia B2-tasoon sopivia työtilanteita. Oman puheen
+nauhoittaminen ja kuuntelu on parantanut tutkimuksissa ymmärrettävyyttä ja sujuvuutta, mutta ei sitä, kuinka vahvalta
+aksentti kuulostaa (Foote ja McDonough 2017). Katsauksen (Whitworth 2024) mukaan hyöty näkyy sujuvuudessa ja prosodiassa, ja
+yksittäisten äänteiden osalta näyttö on epäselvää. Hamadan mukaan shadowing ei myöskään ole puhumisen harjoitus: sillä ei opi
+sanomaan omia ajatuksiaan, joten se täydentää päivän sessiota eikä korvaa sitä. Alle sekunnin viive ja kuulokkeet ovat
+käytännön ohjeita, eivät tutkimustuloksia.
+
+**Rajat.**
+
+- **Sovellus ei arvioi puhettasi.** Puhetta ei voi tunnistaa luotettavasti samalla, kun malli soi, joten oppija arvioi itse.
+- **Malli on synteettinen Kokoro-ääni.** Rytmin ja painotusten harjoitteluun se sopii, mutta ihmisen puheeseen kannattaa
+  tottua erikseen (esim. podcastit).
+- **Nauhoitus on kokeellinen laitteella:** Android-Chromen mikrofoni voi vaikuttaa äänen voimakkuuteen tai reititykseen
+  (kaiutin ↔ kuulokkeet), eikä tätä voi testata pilvestä. Siksi vaihe on valinnainen, ohitettavissa ja kytkettävissä pois
+  asetuksista (`shadowRecord`). Kuulokkeilla nauhoitus onnistuu parhaiten.
+- Äänenä on esiäänitetty leike lausetta kohden (ks. Äänet). Jos yhdenkin lauseen leike puuttuu, koko jono luetaan laitteen äänellä,
+  joten kappale kuulostaa silloin toiselta, mutta toimii.
+
+**Nauhoitus ja yksityisyys (`js/recorder.js`).** Mikrofonia pyydetään vasta, kun painat "Nauhoita kierros". Nauhoitus pysyy vain
+muistissa (Blob): sitä ei tallenneta laitteelle eikä lähetetä minnekään, ja se hylätään, kun poistut vaiheesta. Mikrofoni vapautetaan
+aina nauhoituksen päätyttyä, ja estetty tai puuttuva mikrofoni johtaa selkeään ilmoitukseen ja mahdollisuuteen ohittaa vaihe.
+
+**Tallennus.** `shadowLog` (kappaleiden tila) on mukana varmuuskopiossa valinnaisena kenttänä (`shadowLog`; vanhat kopiot toimivat
+sellaisenaan, ja korvaava tuonti säilyttää nykyisen edistymisen, jos kopiossa ei ole kenttää; yhdistävä tuonti valitsee kappaleittain
+uudemman tilan). `lastShadow` (viimeisin oppitunti) on laitekohtainen eikä ole mukana. Tuntemattomat kappaleet pudotetaan lokista.
+
+**Testit:** `tests/shadow.test.mjs` (kappaleiden rakenne ja englanti, vaiheet, kestoarviot, ajastus, suunnittelu, tallennuksen
+siivous, nauhoittaja valemikrofonilla, varmuuskopio) ja selaintesti `tests/e2e/shadow.cjs` (koko oppitunti valemikrofonilla,
+kertaus, keskeytys, mikrofonin esto, asetukset, tumma teema, 360 px). Esiäänitettyjen leikkeiden toisto on testattu app.cjs:n
+Kokoro-osiossa.
+
 ## Tekoälypalaute (valinnainen)
 
 Sääntötarkistus ei löydä esimerkiksi puuttuvia artikkeleita eikä arvioi sujuvuutta. Siksi palautekortissa on valinnainen
@@ -140,6 +210,9 @@ NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e
 # Pelkkä asennus ja vianetsintä (Asennus-sivu, asennuskehote, välimuistin korjaus oikealla service workerilla, käynnistysvahti)
 NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/install.cjs
 
+# Pelkkä shadowing (Tänään-kortti, koko oppitunti valemikrofonilla, kertaus, keskeytys, mikrofonin esto, asetukset; app.cjs ajaa saman osion mukanaan)
+NODE_PATH=/usr/local/lib/node_modules_global E2E_OUT=/tmp/e2e-out node tests/e2e/shadow.cjs
+
 # Päivitä service workerin versio ja tiedostolista – AJA AINA, kun sovellustiedostoja muuttuu
 node tools/stamp.mjs
 ```
@@ -161,6 +234,8 @@ js/
   runner.js       tehtäväjono, aikaraja, virheiden palautus jonoon; runnerShell (session kehys: ✕, otsikko, palkki)
   plan.js         päivän session suunnittelu (puhdas moduuli): kirjoituksen vuoro ja valinta, aikabudjetit
   steps.js        session kokonaisedistyminen (puhdas malli) ja sen näkymä: "Vaihe 2 / 4", kulunut aika, vaihepalkit
+  shadow.js       shadowing-oppitunnin suunnittelu (puhdas moduuli): vaiheet, kertausvälit, oppitunnin kokoaminen, varmuuskopion siivous
+  recorder.js     oman puheen nauhoitus (MediaRecorder) vain muistiin: tuen tunnistus, virhekoodit, mikrofonin vapautus
   repair.js       sovelluksen korjaus: service workerin ja kuoren välimuistin tyhjennys (oppimisdata säilyy)
   boot-guard.js   käynnistysvahti (tavallinen skripti): jos sovellus ei käynnisty 10 sekunnissa, tarjoaa korjausnapin
   exercises.js    harjoitustyypit
@@ -171,10 +246,11 @@ js/
   stats.js        edistymisluvut
   writing.js      kirjoitustehtävien tarkistus (puhdas moduuli): sanamäärä, sisältökohdat, ilmaukset, rakenne, lauseisiin jako
   writing-rules.js  virhesäännöt (taulukko; jokaisella tunniste, luokka, vakavuus, selitys ja korjaus)
-  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, kirjoita, sanasto, edistyminen, asetukset);
+  views/          näkymät (Tänään, sessio, kertaus, oppitunti, puhu, kirjoita, shadowing, sanasto, edistyminen, asetukset);
                   session kirjoitusvaihe on write.js:n runWriting, joka käyttää samaa tehtävänäkymää kuin Kirjoita
 data/units.js     sisältö (aiheet ja ilmaukset)
 data/writing.js   kirjoitustehtävät (tilanne, sisältökohdat, harjoiteltavat ilmaukset, mallivastaus)
+data/shadow.js    shadowing-kappaleet (lauseet, suomennokset, avainsanat, vinkki)
 audio/            esiäänitetyt leikkeet (.ogg) ja manifest.json; GitHub Actions generoi ja tallentaa nämä
 tests/            yksikkötestit ja tests/e2e (Playwright)
 tools/            stamp.mjs, kuvakkeiden luonti, FSRS-vertailutoteutus
@@ -194,13 +270,13 @@ laitetesti/       vaiheen 0 laitetesti (oma service worker ja oma välimuisti)
 
 Laitteen oma puhesynteesi lukee lyhyet ilmaukset nopeasti ja ilman painotuksia. Siksi sovelluksen kaikki luettavat
 tekstit äänitetään valmiiksi avoimen [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)-mallin amerikanenglannin
-äänellä (`af_heart`, Apache-lisenssi). Äänet ovat tiedostoja (`audio/*.ogg`, Opus, yhteensä noin 5 Mt), jotka Pages
+äänellä (`af_heart`, Apache-lisenssi). Äänet ovat tiedostoja (`audio/*.ogg`, Opus, yhteensä noin 7 Mt, shadowing-kappaleet lisäävät siihen noin 2–3 Mt), jotka Pages
 julkaisee sovelluksen mukana. Mallia ei ajeta laitteella.
 
 **Toimintaperiaate**
 
 1. `tools/tts/texts.mjs` luettelee kaikki tekstit, jotka sovellus voi lukea (ilmaus, esimerkkilause, malli, täytetty
-   aukkolause, kirjoitustehtävän mallivastauksen ja saadun viestin lauseet, asetusten testilause) ja erikseen ne, joilla on "Hitaasti"-painike. Tekstit ovat `speakable()`-muodossa.
+   aukkolause, kirjoitustehtävän mallivastauksen ja saadun viestin lauseet, shadowing-kappaleiden lauseet, asetusten testilause) ja erikseen ne, joilla on "Hitaasti"-painike. Tekstit ovat `speakable()`-muodossa.
 2. `tools/tts/generate.py` tekee jokaisesta tekstistä leikkeen (Kokoron nopeus normaali 0,76 ≈ 155 sanaa minuutissa, hidas 0,55
    ≈ 110; ensimmäinen ajo 0,9 oli noin 190 sanaa minuutissa eli liian nopea), leikkaa hiljaisuudet,
    tasaa voimakkuuden, pakkaa Opus-muotoon ja kirjoittaa `audio/manifest.json`in (teksti → tiedoston tunniste).
@@ -251,8 +327,9 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 ## Yksityisyys ja turvallisuus
 
-- Oppimisdata (kortit, kertaushistoria, asetukset, kirjoitusluonnokset ja -yritysloki) tallentuu vain selaimen IndexedDB-tietokantaan.
-  Varmuuskopio on käyttäjän oma JSON-tiedosto (kortit, kertaushistoria, asetukset), eikä se sisällä API-avaimia eikä kirjoitusluonnoksia.
+- Oppimisdata (kortit, kertaushistoria, asetukset, kirjoitusluonnokset ja -yritysloki sekä shadowing-edistyminen) tallentuu vain selaimen IndexedDB-tietokantaan.
+  Varmuuskopio on käyttäjän oma JSON-tiedosto (kortit, kertaushistoria, shadowing-edistyminen, asetukset), eikä se sisällä API-avaimia eikä kirjoitusluonnoksia.
+- Shadowingin nauhoitus (valinnainen) pysyy vain muistissa: sitä ei tallenneta eikä lähetetä, ja mikrofoni vapautetaan heti nauhoituksen jälkeen.
 - Kirjoita-näkymän sääntötarkistus toimii kokonaan laitteella: kirjoittamaasi tekstiä ei lähetetä minnekään. Poikkeus on
   valinnainen tekoälypalaute, joka lähettää tekstin valitsemallesi palvelulle vasta, kun painat sen painiketta.
 - Puheentunnistus käyttää selaimen omaa tunnistusta. Kun laite on verkossa, Chrome voi lähettää äänen
@@ -268,6 +345,7 @@ Ennen pushia: `node --test tests/*.test.mjs` ja `node tools/stamp.mjs`.
 
 - FSRS-algoritmi: [open-spaced-repetition](https://github.com/open-spaced-repetition) (FSRS-6, oletuspainot).
 - Kuvakkeet: Material Design Icons, Apache-lisenssi 2.0.
+- Shadowing-menetelmä: Hamada (shadowingin vaiheet ja rajat), Kadota ja Tamai (japanilaisten englanninoppijoiden shadowing-ohjelma), Kadota 2007 (materiaalin vaikeustaso), Shiki ym. 2010 (toistojen määrä), Foote ja McDonough 2017 (nauhoitus ja itsearviointi), Whitworth 2024 (katsaus ääntämisvaikutuksista). Kohdat on tiivistetty, ja ne kannattaa tarkistaa alkuperäisistä lähteistä, jos tarkkuudella on väliä.
 - Äänet: [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M) (Apache-lisenssi 2.0; mallin kuvauksen mukaan koulutettu pelkästään
   sallitulla tai tekijänoikeudettomalla äänidatalla). Generointi käyttää Actionsissa kirjastoja kokoro ja misaki (Apache 2.0),
   espeak-ng:tä (GPL, vain työkaluna ääntämisen varasanakirjana) ja ffmpegiä (Opus-koodaus). Sovelluksen mukana jaetaan vain

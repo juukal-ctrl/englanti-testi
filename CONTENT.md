@@ -73,6 +73,35 @@ Sisältö
 Uusia ilmauksia voi lisätä aiheen loppuun. Älä poista tai uudelleennumeroi vanhoja: poistetun ilmauksen kortti jää
 tietokantaan, mutta sitä ei enää kerrata.
 
+## Shadowing-kappaleet
+
+Kappaleet ovat tiedostossa [`data/shadow.js`](data/shadow.js) (`SHADOW_PASSAGES`, 24 kpl: Työ, Arki, Kokoukset ja Mielipiteet
+kuusi kutakin). Ne ovat keksittyjä, helppoja ja arkisia B2-tason työ- ja arkipuheen tilanteita, joita toistetaan ääneen
+mallin kanssa (ks. README: Shadowing). Äidinkielisen puhujan tarkistus puuttuu, kuten muunkin sisällön kohdalta.
+
+| Kenttä | Merkitys |
+| --- | --- |
+| `id` | Pysyvä tunniste `sh-NN`. **Ei saa muuttaa, numeroida uudelleen eikä käyttää uudelleen**, koska edistyminen (`shadowLog`) on sidottu siihen. Lisää uudet kappaleet loppuun. Poistetun kappaleen tila pudotetaan lokista itsestään. |
+| `title` | Englanninkielinen otsikko, joka näkyy harjoituksessa. |
+| `topic` | `Työ`, `Arki`, `Kokoukset` tai `Mielipiteet`. |
+| `lines` | Kappale lauseittain (5–7 lausetta). Jokainen lause äänitetään omaksi leikkeekseen, ja äänessä oleva lause korostetaan. |
+| `fi` | Suomennos jokaiselle lauseelle samassa järjestyksessä (luonteva suomi, ei sanasta sanaan). |
+| `words` | Kolme avainsanaa tai -ilmausta `[englanniksi, suomeksi]`. |
+| `tip` | Yksi suomenkielinen ääntämis- tai rytmivinkki, jossa isot kirjaimet osoittavat painon (*FOLlow up*). |
+
+Testit (`node --test tests/shadow.test.mjs`) vaativat: tunnisteet `sh-01`, `sh-02` … peräkkäin, täydellisen rakenteen (suomennos
+jokaiselle lauseelle, kolme avainsanaa, vinkki), 45–70 sanan pituuden, enintään 18 sanan lauseet, päätemerkin jokaisen lauseen
+lopussa, ettei samaa lausetta ole kahdesti missään kappaleessa, nollan huomautusta kirjoitustarkistimesta ja että neljä
+ensimmäistä kappaletta ovat eri aiheista. Lauseet kuuluvat `tools/tts/texts.mjs`:n esiäänitettäviin teksteihin
+(normaalinopeus), joten GitHub Actions äänittää ne itse, kun tiedosto muuttuu; siihen asti kappale luetaan laitteen äänellä.
+
+Laatulista uudelle kappaleelle
+- [ ] Luonnollista amerikanenglantia, jonka työkaveri sanoisi ääneen. Ei kirjakieltä.
+- [ ] Lyhyet, rytmikkäät lauseet, joihin on helppo tulla mukaan; kappale on noin 25 sekuntia kerralla luettuna.
+- [ ] Sisältö on helppoa ja tuttua: shadowingissa harjoitellaan ääntä ja rytmiä, ei uutta sanastoa (vain 3 avainsanaa).
+- [ ] Sopivaa vaihtelua: kysymyksiä, supistuksia (*I'd*, *we're*), painotettavia sanoja ja luontevia taukokohtia.
+- [ ] Ei oikeita henkilö- tai yritysnimiä, ei numeroita tai lyhenteitä, jotka äänitys voisi lukea huonosti.
+
 ## Kirjoitustehtävät
 
 Tehtävät ovat tiedostossa [`data/writing.js`](data/writing.js) (`WRITING_TASKS`). Jokaisella aiheella on tällä hetkellä yksi

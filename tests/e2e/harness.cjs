@@ -134,9 +134,12 @@ const AUDIO_SPY = `
 })();
 `;
 
-async function launch({ viewport = { width: 412, height: 915 }, scale = 2, stubSpeech = true, colorScheme = 'light', serviceWorkers = 'allow', audioSpy = false } = {}) {
-  const browser = await chromium.launch();
-  const context = await browser.newContext({ viewport, deviceScaleFactor: scale, colorScheme, acceptDownloads: true, locale: 'fi-FI', timezoneId: 'Europe/Helsinki', serviceWorkers });
+// fakeMic: Chromium tarjoaa valemikrofonin (nauhoitustestit) ja hyväksyy mikrofonin käytön ilman kehotetta.
+const FAKE_MIC_ARGS = ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'];
+
+async function launch({ viewport = { width: 412, height: 915 }, scale = 2, stubSpeech = true, colorScheme = 'light', serviceWorkers = 'allow', audioSpy = false, fakeMic = false } = {}) {
+  const browser = await chromium.launch({ args: fakeMic ? FAKE_MIC_ARGS : [] });
+  const context = await browser.newContext({ viewport, deviceScaleFactor: scale, colorScheme, acceptDownloads: true, locale: 'fi-FI', timezoneId: 'Europe/Helsinki', serviceWorkers, permissions: fakeMic ? ['microphone'] : [] });
   await context.addInitScript(HELPERS);
   if (stubSpeech) await context.addInitScript(SPEECH_STUB);
   if (audioSpy) await context.addInitScript(AUDIO_SPY);

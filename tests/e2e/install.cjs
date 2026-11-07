@@ -51,7 +51,7 @@ async function runInstallTests({ base, check, out = '/tmp/e2e-out' }) {
       check('Asennus-sivun otsikko', (await page.textContent('#view h1')) === 'Asennus ja vianetsintä');
       const f = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll('#install-facts dd')].map((d) => [d.id, d.textContent])));
       check('sivu kertoo käynnissä olevan selaimessa', /selaimessa/.test(f['f-mode']), JSON.stringify(f));
-      check('sivu näyttää version', f['f-version'] === '0.6.1', JSON.stringify(f));
+      check('sivu näyttää version', f['f-version'] === '0.7.0', JSON.stringify(f));
       check('sivu kertoo offline-valmiuden ja tallessa olevat tiedostot', /^kyllä \(\d+ tiedostoa tallessa\)$/.test(f['f-offline']), JSON.stringify(f));
       check('asennuskehotteen ollessa saatavilla sivu tarjoaa asennuksen', /Asennus on mahdollinen/.test(f['f-install']) && (await page.locator('#install-btn').count()) === 1, JSON.stringify(f));
       const text = await page.evaluate(() => document.getElementById('view').innerText);

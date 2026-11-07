@@ -73,7 +73,7 @@ export function createProgress({ phases, unit = 'Vaihe', units = 'Vaiheet', tota
 export function progressView(progress) {
   const line = h('span', { class: 'steps-line' });
   const time = h('span', { class: 'steps-time' });
-  const ol = h('ol', { class: 'steps', 'aria-label': progress.units });
+  const ol = h('ol', { class: 'stepper', 'aria-label': progress.units });
   const el = h('div', { class: 'steps-wrap' }, h('div', { class: 'steps-top' }, line, time), ol);
 
   const update = () => {

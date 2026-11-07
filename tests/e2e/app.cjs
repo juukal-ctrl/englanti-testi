@@ -6,6 +6,7 @@ const { serve, launch } = require('./harness.cjs');
 const { runAiTests } = require('./ai.cjs');
 const { runSessionTests } = require('./session.cjs');
 const { runInstallTests } = require('./install.cjs');
+const { runShadowTests } = require('./shadow.cjs');
 const path = require('path');
 const fs = require('fs');
 
@@ -572,6 +573,9 @@ const dbState = (page) =>
   /* ===== 6e. Asennus ja vianetsintä: asennussivu, korjaus ja käynnistysvahti ===== */
   await run('asennus', () => runInstallTests({ base, check, out: OUT }));
 
+  /* ===== 6f. Shadowing: toinen oppitunti (kappaleet, kertaus, nauhoitus, asetukset) ===== */
+  await run('shadowing', () => runShadowTests({ base, check, out: OUT }));
+
   /* ===== 7. Edistyminen ja Lisää ===== */
   await run('edistyminen', async () => {
     await navTo(page, 'more');
@@ -598,7 +602,7 @@ const dbState = (page) =>
     const swSrc = fs.readFileSync(path.join(__dirname, '..', '..', 'sw.js'), 'utf8');
     const swVersion = (swSrc.match(/const VERSION = '([0-9a-f]+)'/) ?? [])[1];
     const about = await page.textContent('#about');
-    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.6\\.1 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää`).test(about), about);
+    check('Asetuksissa näkyy sovelluksen versio ja käytössä oleva kuoritunniste', new RegExp(`Versio 0\\.7\\.0 \\(${swVersion}\\)\\. Sisältö: 126 ilmausta, 12 aihetta, 12 kirjoitustehtävää, 24 shadowing-kappaletta\\.`).test(about), about);
     await shot(page, '15-asetukset', { fullPage: true });
     await overflow(page, 'Asetukset');
     await page.selectOption('#s-theme', 'dark');
@@ -640,6 +644,8 @@ const dbState = (page) =>
   await run('varmuuskopio', async () => {
     await navTo(page, 'settings');
     const before = await dbState(page);
+    const SHADOW_ENTRY = { stage: 2, due: 20010, last: 20007, first: 20000, rating: 'good', plays: 12, sessions: 2 };
+    await page.evaluate((e) => window.__englanti.db.setKv('shadowLog', { 'sh-01': e }), SHADOW_ENTRY);
     const [download] = await Promise.all([page.waitForEvent('download'), page.click('text=Lataa varmuuskopio')]);
     const file = path.join(OUT, 'varmuuskopio.json');
     await download.saveAs(file);
@@ -647,6 +653,8 @@ const dbState = (page) =>
     check('varmuuskopion tiedostonimi', /^englanti-varmuuskopio-\d{4}-\d{2}-\d{2}\.json$/.test(download.suggestedFilename()), download.suggestedFilename());
     check('varmuuskopiossa kortit, tapahtumat ja asetukset', data.app === 'englanti-testi' && data.cards.length === before.cards && data.reviews.length === before.reviews && data.settings && data.settings.newMax === 9, JSON.stringify({ app: data.app, cards: data.cards.length, reviews: data.reviews.length }));
     check('varmuuskopio ei sisällä API-avaimia', !/api[_-]?key|AIza|sk-ant/i.test(JSON.stringify(data)));
+    check('varmuuskopiossa on shadowing-edistyminen', JSON.stringify(data.shadowLog) === JSON.stringify({ 'sh-01': SHADOW_ENTRY }), JSON.stringify(data.shadowLog));
+    check('asetusten ohje mainitsee shadowing-edistymisen varmuuskopiossa', /shadowing-edistymisen/.test(await page.textContent('#view')));
 
     await page.click('text=Poista kaikki tiedot');
     await page.waitForSelector('dialog[open]');
@@ -654,18 +662,22 @@ const dbState = (page) =>
     await page.waitForSelector('#view .hero');
     const wiped = await dbState(page);
     check('poisto tyhjentää kortit ja historian', wiped.cards === 0 && wiped.reviews === 0, JSON.stringify(wiped));
+    check('poisto tyhjentää myös shadowing-edistymisen', JSON.stringify(await page.evaluate(() => window.__englanti.db.getKv('shadowLog', {}))) === '{}');
     check('poiston jälkeen ensikäyttökortti näkyy taas', (await page.locator('.card.intro').count()) === 1);
 
     await navTo(page, 'settings');
     await page.setInputFiles('#s-file', file);
     await page.waitForSelector('dialog[open]');
     await shot(page, '17-tuonti-vahvistus');
+    check('tuontivahvistus kertoo myös shadowing-kappaleiden edistymisen', /edistyminen 1 shadowing-kappaleesta/.test(await page.textContent('dialog[open]')), await page.textContent('dialog[open]'));
     await page.click('dialog[open] .btn.primary'); // Yhdistä
     await page.waitForSelector('#view .hero');
     const restored = await dbState(page);
     check('tuonti palauttaa kortit ja kertaushistorian', restored.cards === before.cards && restored.reviews === before.reviews, JSON.stringify({ before, restored }));
     const settings = await page.evaluate(() => window.__englanti.settings());
     check('tuonti palauttaa asetukset', settings.newMax === 9, JSON.stringify(settings));
+    check('tuonti palauttaa shadowing-edistymisen', JSON.stringify(await page.evaluate(() => window.__englanti.db.getKv('shadowLog', {}))) === JSON.stringify({ 'sh-01': SHADOW_ENTRY }));
+    await page.evaluate(() => window.__englanti.db.setKv('shadowLog', {})); // ei jää vaikuttamaan myöhempiin osioihin
 
     // Rikkinäinen tiedosto hylätään
     await navTo(page, 'settings');
@@ -1161,6 +1173,83 @@ const dbState = (page) =>
 
       const st = await stats(kp);
       check('Kirjoita-teksteistä mikään ei puuttunut leikkeistä, haut onnistuivat ja laitteen ääntä ei tarvittu', st.missing.length === 0 && st.failed === 0 && (await nSpoken(kp)) === 0, `puuttuu: ${st.missing.join(' | ')}; epäonnistui ${st.failed}; laitteen ääni ${await nSpoken(kp)}`);
+    });
+
+    await runOn(kp, 'kokoro: Shadowing – kappaleen lauseet leikkeinä, korostus ja nopeus', async () => {
+      // Shadowing-kappaleiden lauseet kuuluvat esiäänitettyihin leikkeisiin (tools/tts/texts.mjs). Koko ketju – lauseet,
+      // avaimet, manifesti, leikkeiden toisto lause kerrallaan, korostus ja nopeuskerroin – toimii ilman laitteen ääntä.
+      const TW = realAudio ? 120000 : 30000;
+      const data = await kp.evaluate(async () => {
+        const { SHADOW_PASSAGES } = await import(new URL('data/shadow.js', document.baseURI).href);
+        const { speakable } = await import(new URL('js/speakable.js', document.baseURI).href);
+        return { all: SHADOW_PASSAGES.flatMap((p) => p.lines.map(speakable)), first: SHADOW_PASSAGES[0].lines.map(speakable), count: SHADOW_PASSAGES.length };
+      });
+      const missingText = data.all.filter((t) => !manifest.normal[t]);
+      check(`kaikkien ${data.count} shadowing-kappaleen lauseet on esiäänitetty normaalinopeudella`, data.count === 24 && missingText.length === 0, `${missingText.length} puuttuu: ${missingText.slice(0, 3).join(' | ')}`);
+      const clipIds = data.first.map((t) => manifest.normal[t]);
+      const passDone = () => kp.waitForFunction(() => /^(Jatka|Kierros|Valmis)/.test(document.querySelector('#shadow-primary')?.textContent ?? ''), null, { timeout: TW });
+      const waitStage = (text) => kp.waitForFunction((t) => (document.querySelector('.stage-title')?.textContent ?? '').replace(/\s+/g, ' ').trim().startsWith(t), text, { timeout: 10000 });
+      const playedFrom = async (before) => (await stats(kp)).played.slice(before);
+
+      await kp.evaluate(() => window.__englanti.saveSettings({ shadowMinutes: 5, shadowRecord: false }));
+      await go(kp, base2, 'shadow');
+      await kp.waitForSelector('#shadow-start');
+      await kp.evaluate(() => (window.__spoken.length = 0));
+      await kp.click('#shadow-start');
+      await kp.waitForSelector('#shadow-primary');
+      let before = (await stats(kp)).played.length;
+      await kp.click('#shadow-primary'); // Kuuntele
+      await passDone();
+      check('Kuuntele: kappaleen lauseet soivat leikkeinä järjestyksessä', JSON.stringify(await playedFrom(before)) === JSON.stringify(clipIds), JSON.stringify(await playedFrom(before)));
+      check('Kuuntele: leikkeet soivat sellaisenaan (asetusnopeus 0,85 = leikkeen oma nopeus)', await kp.evaluate(() => window.__audios.slice(-5).every((a) => Math.abs(a.playbackRate - 1) < 0.001)));
+
+      await kp.click('#shadow-primary'); // → Lue ja ymmärrä
+      await kp.waitForSelector('#shadow-read');
+      before = (await stats(kp)).played.length;
+      await kp.click('#shadow-read li:nth-child(2) .line-btn');
+      await kp.waitForFunction((n) => window.__englanti.clipStats().played.length >= n, before + 1, { timeout: T });
+      check('lauseen napautus soittaa vain sen lauseen leikkeen', (await playedFrom(before))[0] === clipIds[1] && (await playedFrom(before)).length === 1, JSON.stringify(await playedFrom(before)));
+      await idle(kp);
+
+      await kp.click('#shadow-primary'); // → Lue mukana
+      await waitStage('Lue mukana');
+      before = (await stats(kp)).played.length;
+      await kp.click('#shadow-primary');
+      await kp.waitForFunction(() => document.querySelector('#shadow-lines .line.now'), null, { timeout: T });
+      const marked = await kp.evaluate(() => [...document.querySelectorAll('#shadow-lines .line')].findIndex((e) => e.classList.contains('now')));
+      check('leikkeitä soitettaessa äänessä oleva lause korostetaan', marked >= 0, String(marked));
+      await passDone();
+      check('Lue mukana: sama lausejono leikkeinä', JSON.stringify(await playedFrom(before)) === JSON.stringify(clipIds), JSON.stringify(await playedFrom(before)));
+      check('korostus poistuu kierroksen päätyttyä', (await kp.locator('#shadow-lines .line.now').count()) === 0);
+
+      // Nopeus: Nopea soittaa leikkeitä 1,15-kertaisella nopeudella, Hidas 0,8-kertaisella.
+      await kp.click('#shadow-primary'); // → Toista tekstin kanssa 1 / 3
+      await waitStage('Toista tekstin kanssa');
+      await kp.click('[data-speed=fast]');
+      await kp.click('#shadow-primary');
+      await passDone();
+      const fast = await kp.evaluate(() => window.__audios.slice(-5).map((a) => a.playbackRate));
+      check('Nopea: leikkeiden toistonopeus on 1,15', fast.length === 5 && fast.every((r) => Math.abs(r - 1.15) < 0.01), JSON.stringify(fast));
+      await kp.click('#shadow-primary');
+      await kp.waitForFunction(() => /kierros 2 \/ 3/.test(document.querySelector('.stage-title').textContent));
+      await kp.click('[data-speed=slow]');
+      await kp.click('#shadow-primary');
+      await passDone();
+      const slowRates = await kp.evaluate(() => window.__audios.slice(-5).map((a) => a.playbackRate));
+      check('Hidas: leikkeiden toistonopeus on 0,8', slowRates.length === 5 && slowRates.every((r) => Math.abs(r - 0.8) < 0.01), JSON.stringify(slowRates));
+      const st = await stats(kp);
+      check('shadowingissa mikään teksti ei puuttunut leikkeistä, haut onnistuivat eikä laitteen ääntä tarvittu', st.missing.length === 0 && st.failed === 0 && (await nSpoken(kp)) === 0, `puuttuu: ${st.missing.join(' | ')}; epäonnistui ${st.failed}; laitteen ääni ${await nSpoken(kp)}`);
+      // Poistutaan kesken oppitunnin: soiva leike pysähtyy.
+      await kp.click('#shadow-primary'); // → kierros 3 / 3
+      await kp.waitForFunction(() => /kierros 3 \/ 3/.test(document.querySelector('.stage-title').textContent));
+      await kp.click('#shadow-primary'); // käynnistä kierros
+      await kp.waitForFunction(() => window.__audios.some((a) => !a.paused && !a.ended), null, { timeout: T });
+      await kp.click('.runner-head .icon-btn');
+      await kp.waitForSelector('dialog[open]');
+      await kp.click('dialog[open] .btn.primary');
+      await kp.waitForSelector('#shadow-card');
+      check('oppitunnin lopetus pysäyttää soivan leikkeen', await kp.evaluate(() => window.__audios.every((a) => a.paused || a.ended)));
+      await kp.evaluate(() => window.__englanti.saveSettings({ shadowMinutes: 15, shadowRecord: true }));
     });
 
     await runOn(kp, 'kokoro: lataus offline-käyttöön', async () => {

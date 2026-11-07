@@ -70,6 +70,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -601,7 +605,7 @@ dialog.dialog::backdrop {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.steps {
+.stepper {
   display: flex;
   gap: 0.35rem;
   list-style: none;
@@ -1247,4 +1251,152 @@ ol.steps-list {
   padding-left: 1.4rem;
   display: grid;
   gap: 0.45rem;
+}
+
+/* ---------- Shadowing ---------- */
+
+.shadow-title {
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--muted);
+  margin: 0 0 0.35rem;
+}
+.stage-title {
+  font-size: 1.5rem;
+  margin: 0.1rem 0 0.4rem;
+}
+.stage-title .round {
+  display: inline-block;
+  margin-left: 0.45rem; /* alussa oleva välilyönti häviää inline-blockissa */
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stage-help {
+  margin: 0.3rem 0 0.8rem;
+}
+.pass-dots {
+  display: flex;
+  gap: 0.45rem;
+  margin: 0.2rem 0 0.8rem;
+}
+.dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  background: transparent;
+}
+.dot.done {
+  background: var(--accent);
+}
+.dot.now {
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.lines {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0.9rem;
+}
+.line {
+  margin: 0;
+  padding: 0.45rem 0.7rem;
+  font-size: 1.15rem;
+  line-height: 1.45;
+  border-left: 4px solid transparent;
+  border-radius: 0.5rem;
+}
+.line.now,
+.read-line.now {
+  background: var(--accent-soft);
+  border-left-color: var(--accent);
+}
+.hidden-note {
+  margin: 0.6rem 0 0.9rem;
+  padding: 1.1rem 0.9rem;
+  border: 1.5px dashed var(--line);
+  border-radius: 0.9rem;
+  text-align: center;
+}
+.seg {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+.seg-btn {
+  flex: 1;
+  font: inherit;
+  font-weight: 600;
+  min-height: 2.75rem;
+  border-radius: 0.8rem;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.seg-btn.on {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.seg-btn:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+.btn-row {
+  display: flex;
+  gap: 0.6rem;
+}
+.btn-row > * {
+  flex: 1;
+}
+.btn.primary.playing {
+  background: var(--accent-soft);
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.read-lines {
+  list-style: none;
+  margin: 0.4rem 0 0.8rem;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.read-line {
+  padding: 0.4rem 0.7rem;
+  border-left: 4px solid transparent;
+  border-radius: 0.5rem;
+}
+.line-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1.4;
+  padding: 0.2rem 0;
+  min-height: 2.5rem;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.line-btn .icon {
+  flex: none;
+  margin-top: 0.35rem;
+  color: var(--accent);
+}
+.read-line .fi {
+  display: block;
+  color: var(--muted);
+  font-size: 0.95rem;
+  padding: 0 0 0.2rem 1.65rem;
+}
+.kw h3 {
+  margin-top: 0.6rem;
 }

@@ -3,7 +3,9 @@ import { nextNewItems } from '../content.js';
 import { dayTotals, summarize } from '../stats.js';
 import { fmtDay, fmtMinutes, dayToDate } from '../util.js';
 import { WRITING_TASKS } from '../../data/writing.js';
+import { SHADOW_PASSAGES } from '../../data/shadow.js';
 import { summarizeLog } from '../plan.js';
+import { cleanShadowLog, summarizeShadow } from '../shadow.js';
 import { writingFor } from './session.js';
 
 const WEEKDAYS = ['sunnuntai', 'maanantai', 'tiistai', 'keskiviikko', 'torstai', 'perjantai', 'lauantai'];
@@ -23,6 +25,8 @@ export async function mount(root, ctx) {
   const last = await ctx.db.getKv('lastSession', null);
   const activity = await ctx.db.getKv('activity', {});
   const writeState = summarizeLog(await ctx.db.getKv('writeLog', []));
+  const shadowSum = summarizeShadow(cleanShadowLog(await ctx.db.getKv('shadowLog', {})), SHADOW_PASSAGES, today);
+  const lastShadow = await ctx.db.getKv('lastShadow', null);
   const doneToday = last?.day === today;
 
   const due = srs.due(today).length;
@@ -89,6 +93,34 @@ export async function mount(root, ctx) {
     );
   }
   root.append(hero);
+
+  // Toinen oppitunti: shadowing. Vapaaehtoinen, päivän session lisäksi.
+  const shadowDone = lastShadow?.day === today;
+  let shadowLine;
+  if (shadowDone) shadowLine = `Tänään harjoiteltu: ${plural(lastShadow.passages, 'kappale', 'kappaletta')}.`;
+  else if (shadowSum.due > 0) shadowLine = `Kertausvuorossa: ${plural(shadowSum.due, 'kappale', 'kappaletta')}.`;
+  else if (shadowSum.seen === 0) shadowLine = 'Aloitat ensimmäisestä kappaleesta.';
+  else if (shadowSum.unseen > 0) shadowLine = 'Seuraavaksi uusi kappale.';
+  else shadowLine = 'Kaikki kappaleet on käyty läpi. Ne palaavat kertaukseen, kun on niiden aika.';
+  root.append(
+    h(
+      'section',
+      { class: 'card', id: 'shadow-card', 'aria-labelledby': 'shadow-h' },
+      h('h2', { id: 'shadow-h' }, `Shadowing · ${s.shadowMinutes} min`),
+      h('p', {}, 'Toinen oppitunti päivän session lisäksi: puhut englantia samaan aikaan äänen kanssa. Se harjoittaa ääntämistä, rytmiä ja sujuvaa puhetta.'),
+      h('p', { class: 'muted', id: 'shadow-status' }, `${shadowLine} Harjoiteltu ${shadowSum.seen} / ${shadowSum.total} kappaletta.`),
+      h('div', { class: 'actions' }, h('a', { class: 'btn big', id: 'shadow-open', href: '#/shadow' }, shadowDone ? 'Harjoittele lisää' : 'Aloita shadowing')),
+      h(
+        'details',
+        { class: 'model', id: 'shadow-info' },
+        h('summary', {}, 'Mitä shadowing on?'),
+        h('p', {}, 'Shadowing tarkoittaa, että toistat kuulemaasi englantia ääneen samaan aikaan, korkeintaan sekunnin jäljessä. Se harjoittaa ääntämistä, rytmiä, painotuksia ja sujuvuutta.'),
+        h('p', {}, 'Se ei ole keskusteluharjoitus eikä korvaa päivän sessiota: kappaleet ovat valmiita, eikä sinun tarvitse keksiä omia lauseita.'),
+        h('p', {}, 'Jokainen kappale käydään läpi vaiheittain: kuuntelu, ymmärtäminen, mukana lukeminen sekä toisto tekstin kanssa ja ilman. Sama kappale palaa muutaman päivän välein, koska toisto samassa istunnossa tasaantuu muutaman kierroksen jälkeen.'),
+        h('p', {}, 'Sovellus ei arvioi puhettasi. Arvioit itse, miten sujui, ja arvio ajastaa kappaleen paluun. Kuulokkeet auttavat.'),
+      ),
+    ),
+  );
 
   // Päivän sessio kattaa kaiken; erilliset harjoitukset ovat vain vapaaehtoista lisäharjoitusta.
   root.append(

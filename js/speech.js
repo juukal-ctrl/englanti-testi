@@ -83,6 +83,7 @@ export async function speak(text, opts = {}) {
  * Lukee useita tekstejä peräkkäin lyhyin tauoin (esim. ilmaus ja esimerkkilause).
  * Pysähtyy, jos käyttäjä pysäyttää toiston tai käynnistää toisen.
  * Valinnat: rate (laitteen ääni), slow ja userRate (esiäänitetyt leikkeet), voiceURI, onStart, pauseMs.
+ * onPart(i) kutsutaan, kun i:s teksti alkaa (molemmilla äänillä), esim. lauseen korostamiseen.
  * Esiäänitetty leike on ensisijainen; jos sitä ei ole tai se ei lataudu, teksti luetaan laitteen äänellä.
  */
 export async function speakSequence(texts, { pauseMs = 450, ...opts } = {}) {
@@ -92,7 +93,7 @@ export async function speakSequence(texts, { pauseMs = 450, ...opts } = {}) {
   const alive = () => epoch === mine;
   stopClips();
   if (clipsWanted(opts.voiceURI)) {
-    const played = await playClips(parts, { slow: opts.slow, userRate: opts.userRate ?? opts.rate, pauseMs, alive, onStart: opts.onStart });
+    const played = await playClips(parts, { slow: opts.slow, userRate: opts.userRate ?? opts.rate, pauseMs, alive, onStart: opts.onStart, onPart: opts.onPart });
     if (played) return played;
     if (!alive()) return { ok: true, kind: 'stopped' };
   }
@@ -100,7 +101,8 @@ export async function speakSequence(texts, { pauseMs = 450, ...opts } = {}) {
   let last = { ok: true, kind: 'end' };
   for (let i = 0; i < parts.length; i++) {
     if (epoch !== mine) return { ok: true, kind: 'stopped' };
-    last = await speakOne(parts[i], opts, { fresh: i === 0, alive });
+    const partOpts = opts.onPart ? { ...opts, onStart: () => { opts.onPart(i); opts.onStart?.(); } } : opts;
+    last = await speakOne(parts[i], partOpts, { fresh: i === 0, alive });
     if (!last.ok || last.kind !== 'end') return last;
     if (i < parts.length - 1) await sleep(pauseMs);
   }
