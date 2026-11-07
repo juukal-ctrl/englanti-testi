@@ -270,7 +270,7 @@ laitetesti/       vaiheen 0 laitetesti (oma service worker ja oma välimuisti)
 
 Laitteen oma puhesynteesi lukee lyhyet ilmaukset nopeasti ja ilman painotuksia. Siksi sovelluksen kaikki luettavat
 tekstit äänitetään valmiiksi avoimen [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)-mallin amerikanenglannin
-äänellä (`af_heart`, Apache-lisenssi). Äänet ovat tiedostoja (`audio/*.ogg`, Opus, yhteensä noin 7 Mt, shadowing-kappaleet lisäävät siihen noin 2–3 Mt), jotka Pages
+äänellä (`af_heart`, Apache-lisenssi). Äänet ovat tiedostoja (`audio/*.ogg`, Opus, yhteensä noin 8,4 Mt, josta shadowing-kappaleiden 132 leikettä on noin 1,6 Mt), jotka Pages
 julkaisee sovelluksen mukana. Mallia ei ajeta laitteella.
 
 **Toimintaperiaate**
